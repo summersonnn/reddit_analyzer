@@ -17,7 +17,6 @@ for comment in comments:
 
 
 # Account for nested comments (right now only the root comments are fetched)
-# Create git repo
 
 
 # Bugfix:
