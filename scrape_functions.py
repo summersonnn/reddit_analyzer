@@ -70,6 +70,7 @@ def fetch_html_response_with_selenium(url):
     except WebDriverException as e:
         return f"Error fetching the HTML response with Selenium: {e}"
     finally:
+        #time.sleep(100)
         driver.quit()
     
 def extract_main_content(html_response):
@@ -167,6 +168,7 @@ def extract_op(main_content):
     except AttributeError:
         return "An unexpected error occurred while navigating the HTML structure."
     
+# Only depth 1 comments
 def extract_comments(main_content):
     """
     Extract comments from the main_content div.
@@ -222,6 +224,92 @@ def extract_comments(main_content):
                 comments.append(quote_text + comment_text)
 
         return comments
+
+    except AttributeError:
+        return "An error occurred while extracting comments."
+    
+# Full comment tree
+def extract_comments_with_tree(main_content):
+    """
+    Extract comments from the main_content div, including nested comments.
+    Returns comments in a tree structure using a single dictionary.
+    """
+    def pretty_print_comments(comments_dict, indent=0):
+        """
+        Helper function to print comments in a tree-like structure
+        """
+        output = ""
+        for key, value in comments_dict.items():
+            if key.startswith('comment_'):
+                output += "="*50 + "\n"  # Separator for top-level comments
+            
+            prefix = "    " * indent  # 4 spaces for each level of indentation
+            
+            if value["comment"]:
+                # Add arrow prefix for replies
+                arrow = "└─► " if key.startswith('reply_') else ""
+                output += f"{prefix}{arrow}{value['comment']}\n"
+            
+            if value["replies"]:
+                output += pretty_print_comments(value["replies"], indent + 1)
+        return output
+
+    def extract_comment_and_children(comment_ad):
+        comment_data = {"comment": "", "replies": {}}
+        
+        # Extract the current comment's content
+        comment_rtjson_content = comment_ad.find('div', id=re.compile(r'-comment-rtjson-content$'))
+        if comment_rtjson_content:
+            post_rtjson_content = comment_rtjson_content.find('div', id=re.compile(r'-post-rtjson-content$'))
+            if post_rtjson_content:
+                # Extract quotes and paragraphs
+                p_tags = post_rtjson_content.find_all('p')
+                quote_block = post_rtjson_content.find('blockquote')
+                quote_text = ''
+                if quote_block:
+                    quote_text = 'In response to: ' + ' '.join([p.get_text(strip=True) for p in quote_block.find_all('p')]) + '\n'
+                    p_tags = p_tags[1:]
+                
+                comment_text = ' '.join([p.get_text(strip=True) for p in p_tags])
+                if comment_text:
+                    comment_data["comment"] = quote_text + comment_text
+
+        # Recursively extract child comments
+        child_comments = comment_ad.find_all('shreddit-comment', recursive=False)
+        for i, child in enumerate(child_comments):
+            child_data = extract_comment_and_children(child)
+            if child_data["comment"] or child_data["replies"]:
+                comment_data["replies"][f"reply_{i+1}"] = child_data
+                
+        return comment_data
+
+    try:
+        # Find the div with id starting with "comment-tree-content-anchor-"
+        comment_tree_content_anchor = main_content.find('div', id=re.compile(r'^comment-tree-content-anchor-'))
+        if not comment_tree_content_anchor:
+            return "The comment-tree-content-anchor div was not found in the main content."
+        
+        faceplate_batch = comment_tree_content_anchor.find('faceplate-batch', target="#comment-tree")
+        if not faceplate_batch:
+            return "The faceplate-batch tag with target '#comment-tree' was not found in the main content."
+        
+        comment_tree = faceplate_batch.find('shreddit-comment-tree', id="comment-tree")
+        if not comment_tree:
+            return "The shreddit-comment-tree tag with id 'comment-tree' was not found in the main content."
+
+        # Find all top-level comments and their replies
+        comments_dict = {}
+        comment_ads = comment_tree.find_all('shreddit-comment', recursive=False)
+        for i, comment_ad in enumerate(comment_ads):
+            comment_data = extract_comment_and_children(comment_ad)
+            if comment_data["comment"] or comment_data["replies"]:
+                comments_dict[f"comment_{i+1}"] = comment_data
+
+        # Return both the dictionary and its pretty-printed version
+        return {
+            "raw": comments_dict,
+            "pretty": pretty_print_comments(comments_dict),
+        }
 
     except AttributeError:
         return "An error occurred while extracting comments."
