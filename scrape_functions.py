@@ -48,7 +48,7 @@ def fetch_html_response_with_selenium(url):
             # Scroll down to the bottom
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             # Wait for the page to load more content
-            time.sleep(2)  # Adjust the sleep time as necessary
+            time.sleep(1)  # Adjust the sleep time as necessary
             # Calculate new scroll height and compare with last scroll height
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
@@ -57,7 +57,7 @@ def fetch_html_response_with_selenium(url):
                     button = driver.find_element(By.XPATH, "/html/body/shreddit-app/div/div[1]/div/main/div/faceplate-batch/shreddit-comment-tree/faceplate-partial/div[1]/faceplate-tracker/button/span/span[2]")
                     button.click()
                     # Wait for the page to load more content after clicking the button
-                    time.sleep(2)  # Adjust the sleep time as necessary
+                    time.sleep(1)  # Adjust the sleep time as necessary
                     # Update the new height after clicking the button
                     new_height = driver.execute_script("return document.body.scrollHeight")
                 except NoSuchElementException:
@@ -65,12 +65,47 @@ def fetch_html_response_with_selenium(url):
                     break
             last_height = new_height
 
-        # Get the page source after JavaScript has rendered the content
-        return driver.page_source
+        # Initial fetch of the page source
+        page_source = driver.page_source
+
+        # XPATH for "Load X more replies" buttons
+        all_generic_xpath = "//shreddit-comment//a[starts-with(@id, 'comments-permalink-')]/span[@class='text-secondary-weak font-normal'] | //shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
+
+        # For now, we won't be using all_generic_xpath but shallow_generic_xpath
+        # The difference: The latter scrapes only up to depth 4 which is the comment depth limit. Beyond that, clicking on "X more replies" will change the whole page source.
+        shallow_generic_xpath = "//shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
+
+        # TODO: All buttons are clicked. But stuck in the loop. Get out of the loop!
+        while True:
+            # Find all "Load X more replies" buttons
+            try:
+                buttons = driver.find_elements(By.XPATH, shallow_generic_xpath)
+                if not buttons:
+                    print("No 'Load X more replies' buttons found. Exiting loop.")
+                    break
+
+                for button in buttons:
+                    try:
+                        button.click()
+                        time.sleep(0.5)  # Adjust the sleep time as needed to avoid being detected as a bot
+                    except Exception as e:
+                        print(f"Failed to click button: {e}")
+
+                # Re-fetch the page source after clicking buttons
+                page_source = driver.page_source
+
+            except NoSuchElementException:
+                print("No 'Load X more replies' buttons found. Exiting loop.")
+                break
+
+        # Final fetch of the page source after all checks
+        page_source = driver.page_source
+
+        return page_source
+
     except WebDriverException as e:
         return f"Error fetching the HTML response with Selenium: {e}"
     finally:
-        #time.sleep(100)
         driver.quit()
     
 def extract_main_content(html_response):
