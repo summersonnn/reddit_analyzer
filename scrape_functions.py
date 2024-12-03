@@ -7,7 +7,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import WebDriverException, NoSuchElementException
+from selenium.common.exceptions import WebDriverException, NoSuchElementException, ElementClickInterceptedException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def fetch_html_response(url):
@@ -75,7 +77,6 @@ def fetch_html_response_with_selenium(url):
         # The difference: The latter scrapes only up to depth 4 which is the comment depth limit. Beyond that, clicking on "X more replies" will change the whole page source.
         shallow_generic_xpath = "//shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
 
-        # TODO: All buttons are clicked. But stuck in the loop. Get out of the loop!
         while True:
             # Find all "Load X more replies" buttons
             try:
@@ -86,8 +87,25 @@ def fetch_html_response_with_selenium(url):
 
                 for button in buttons:
                     try:
+                        # Print the button's text if it exists
+                        button_text = button.text
+                        print(f"Clicking button with text: {button_text}")
+
+                        # Scroll the button into view with offset to avoid header overlaps
+                        driver.execute_script("""
+                            arguments[0].scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        """, button)
+                        time.sleep(1)
+
+                        # Click the button
                         button.click()
-                        time.sleep(0.5)  # Adjust the sleep time as needed to avoid being detected as a bot
+                    except ElementClickInterceptedException:
+                        print(f"Element click intercepted for button with text: {button_text}")
+                        # Handle the intercepted click
+                        # You can add additional logic here if needed
                     except Exception as e:
                         print(f"Failed to click button: {e}")
 
@@ -100,6 +118,7 @@ def fetch_html_response_with_selenium(url):
 
         # Final fetch of the page source after all checks
         page_source = driver.page_source
+
 
         return page_source
 
