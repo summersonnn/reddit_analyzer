@@ -1,7 +1,7 @@
 from scrape_functions import fetch_html_response, extract_main_content, extract_shreddit_title_from_main_content, extract_op, extract_comments, fetch_html_response_with_selenium, extract_comments_with_tree
 
 # Example usage
-url = "https://www.reddit.com/r/LocalLLaMA/comments/1h12cmq/cheapest_hardware_go_run_32b_models/"  # Replace with the desired URL
+url = "https://www.reddit.com/r/LocalLLaMA/comments/1h12cmq/cheapest_hardware_go_run_32b_models/?rdt=57503"  # Replace with the desired URL
 html_response = fetch_html_response_with_selenium(url)
 
 main_content = extract_main_content(html_response)

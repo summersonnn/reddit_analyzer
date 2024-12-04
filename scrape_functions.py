@@ -20,6 +20,11 @@ def fetch_html_response(url):
     except requests.exceptions.RequestException as e:
         return f"Error fetching the HTML response: {e}"
     
+
+# Still not perfect but works ~95% of the time. Some deleted inner comments are still problematic.
+# Plus, some comments where the "+" button must be clicked in order to see the comment tree.
+# These will be fixed at later stages. For now, we need to catch the loop, break and continue operations.
+# TODO: Detect the loop and break it in "Load X more replies" while loop
 def fetch_html_response_with_selenium(url):
     """
     Fetches the HTML response from the given URL using Selenium with Chrome.
@@ -74,10 +79,18 @@ def fetch_html_response_with_selenium(url):
         # The difference: The latter scrapes only up to depth 4 which is the comment depth limit. Beyond that, clicking on "X more replies" will change the whole page source.
         shallow_generic_xpath = "//shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
 
+        # The diff from above is that this one doesn't capture buttons inside a deleted comment (in any depth)
+        shallow_generic_xpath2 = """
+            //shreddit-comment[not(@author='[deleted]') and not(ancestor::shreddit-comment[@author='[deleted]'])]
+            //faceplate-partial/div[@class='inline-block ml-px']
+            /button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']
+            /span[@class='text-secondary-weak font-normal']
+        """
+
         while True:
             # Find all "Load X more replies" buttons
             try:
-                buttons = driver.find_elements(By.XPATH, shallow_generic_xpath)
+                buttons = driver.find_elements(By.XPATH, shallow_generic_xpath2)
                 if not buttons:
                     print("No 'Load X more replies' buttons found. Exiting loop.")
                     break
@@ -244,7 +257,7 @@ def extract_comments(main_content):
 
         # Find all shreddit-comment tags
         comments = []
-        comment_ads = comment_tree.find_all('shreddit-comment', recursive=False)
+        comment_ads = comment_tree.find_all('shreddit-comment', attrs={'author': lambda x: x != '[deleted]'}, recursive=False)
         for comment_ad in comment_ads:
             # Find the div with id ending in "-comment-rtjson-content"
             comment_rtjson_content = comment_ad.find('div', id=re.compile(r'-comment-rtjson-content$'))
@@ -324,7 +337,7 @@ def extract_comments_with_tree(main_content):
                     comment_data["comment"] = quote_text + comment_text
 
         # Recursively extract child comments
-        child_comments = comment_ad.find_all('shreddit-comment', recursive=False)
+        child_comments = comment_ad.find_all('shreddit-comment', attrs={'author': lambda x: x != '[deleted]'}, recursive=False)
         for i, child in enumerate(child_comments):
             child_data = extract_comment_and_children(child)
             if child_data["comment"] or child_data["replies"]:
@@ -348,7 +361,7 @@ def extract_comments_with_tree(main_content):
 
         # Find all top-level comments and their replies
         comments_dict = {}
-        comment_ads = comment_tree.find_all('shreddit-comment', recursive=False)
+        comment_ads = comment_tree.find_all('shreddit-comment', attrs={'author': lambda x: x != '[deleted]'}, recursive=False)
         for i, comment_ad in enumerate(comment_ads):
             comment_data = extract_comment_and_children(comment_ad)
             if comment_data["comment"] or comment_data["replies"]:
