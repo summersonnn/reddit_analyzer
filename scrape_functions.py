@@ -8,6 +8,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, NoSuchElementException, ElementClickInterceptedException
+from selenium.webdriver.common.action_chains import ActionChains
 
 def fetch_html_response(url):
     """
@@ -61,7 +62,8 @@ def fetch_html_response_with_selenium(url):
                     button = driver.find_element(By.XPATH, "/html/body/shreddit-app/div/div[1]/div/main/div/faceplate-batch/shreddit-comment-tree/faceplate-partial/div[1]/faceplate-tracker/button/span/span[2]")
                     button.click()
                     # Wait for the page to load more content after clicking the button
-                    time.sleep(1)  # Adjust the sleep time as necessary
+                    time.sleep(2)  # Adjust the sleep time as necessary
+                    move_cursor_to_center_of_viewport(driver)
                     # Update the new height after clicking the button
                     new_height = driver.execute_script("return document.body.scrollHeight")
                 except NoSuchElementException:
@@ -87,15 +89,24 @@ def fetch_html_response_with_selenium(url):
             /span[@class='text-secondary-weak font-normal']
         """
 
-        while True:
-            # Find all "Load X more replies" buttons
+        # Dictionary to keep track of consecutive failures for each button
+        button_failures = {}
+
+        # Initialize the flag to track if any button was clicked
+        at_least_one_clicked = True
+
+        while at_least_one_clicked:
+            # Find all "Load X more replies" buttons only if at least one button was clicked in the previous iteration
             try:
                 buttons = driver.find_elements(By.XPATH, shallow_generic_xpath2)
                 if not buttons:
                     print("No 'Load X more replies' buttons found. Exiting loop.")
                     break
 
+                at_least_one_clicked = False
                 for button in buttons:
+                    button_id = button.id  # Use button's unique ID as a key
+
                     try:
                         # Print the button's text if it exists
                         button_text = button.text
@@ -112,15 +123,31 @@ def fetch_html_response_with_selenium(url):
 
                         # Click the button
                         button.click()
+                        # Reset the failure count for this button
+                        button_failures[button_id] = 0
+                        at_least_one_clicked = True
+
                     except ElementClickInterceptedException:
                         print(f"Element click intercepted for button with text: {button_text}")
-                        # Handle the intercepted click
-                        # You can add additional logic here if needed
+                        # Increment the failure count for this button
+                        button_failures[button_id] = button_failures.get(button_id, 0) + 1
+                        if button_failures[button_id] >= 3:
+                            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
+                            # Remove the button from the list
+                            buttons.remove(button)
+
                     except Exception as e:
                         print(f"Failed to click button: {e}")
+                        # Increment the failure count for this button
+                        button_failures[button_id] = button_failures.get(button_id, 0) + 1
+                        if button_failures[button_id] >= 3:
+                            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
+                            # Remove the button from the list
+                            buttons.remove(button)
 
-                # Re-fetch the page source after clicking buttons
-                page_source = driver.page_source
+                if at_least_one_clicked:
+                    # Re-fetch the page source only if at least one button was clicked
+                    page_source = driver.page_source
 
             except NoSuchElementException:
                 print("No 'Load X more replies' buttons found. Exiting loop.")
@@ -148,9 +175,9 @@ def extract_main_content(html_response):
         main_content = (
             soup.body
                 .find('shreddit-app')
-                .find('div', class_="grid-container theme-rpl grid grid-cols-1 m:grid-cols-[272px_1fr]")
-                .find('div', class_="subgrid-container m:col-start-2 box-border flex flex-col order-2 w-full m:w-[1120px] m:max-w-[calc(100vw-272px)] xs:px-md mx-auto")
-                .find('div', class_="main-container flex gap-md w-full flex-wrap xs:flex-nowrap pb-xl")
+                .find('div', class_="grid-container")
+                .find('div', class_="subgrid-container")
+                .find('div', class_="main-container")
                 .find('main', id="main-content")
         )
         return main_content
@@ -375,5 +402,19 @@ def extract_comments_with_tree(main_content):
 
     except AttributeError:
         return "An error occurred while extracting comments."
+    
+
+def move_cursor_to_center_of_viewport(driver):
+    # Get the size of the viewport
+    viewport_width = driver.execute_script("return document.documentElement.clientWidth")
+    viewport_height = driver.execute_script("return document.documentElement.clientHeight")
+
+    # Calculate the center of the viewport
+    center_x = viewport_width // 2
+    center_y = viewport_height // 2
+
+    # Move the cursor to the center of the viewport
+    actions = ActionChains(driver)
+    actions.move_by_offset(center_x, center_y).perform()
 
 
