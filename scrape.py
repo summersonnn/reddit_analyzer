@@ -1,7 +1,7 @@
 from scrape_functions import extract_main_content, extract_shreddit_title_from_main_content, extract_op, fetch_html_response_with_selenium, extract_comments_with_tree
 
 # Example usage
-url = "https://www.reddit.com/r/LocalLLaMA/comments/1hd0y5j/introducing_phi4_microsofts_newest_small_language/"  # Replace with the desired URL
+url = "https://www.reddit.com/r/LocalLLaMA/comments/1hd16ev/bro_wtf/"  # Replace with the desired URL
 html_response = fetch_html_response_with_selenium(url)
 
 main_content = extract_main_content(html_response)
@@ -17,5 +17,7 @@ main_content = extract_main_content(html_response)
 
 comments = extract_comments_with_tree(main_content)
 print(comments["pretty"])
+
+# TODO: Block comments are problematic and needs a fix (original comment does not show)
 
 
