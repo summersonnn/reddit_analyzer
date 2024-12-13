@@ -22,10 +22,6 @@ def fetch_html_response(url):
         return f"Error fetching the HTML response: {e}"
     
 
-# Still not perfect but works ~95% of the time. Some deleted inner comments are still problematic.
-# Plus, some comments where the "+" button must be clicked in order to see the comment tree.
-# These will be fixed at later stages. For now, we need to catch the loop, break and continue operations.
-# TODO: Detect the loop and break it in "Load X more replies" while loop
 def fetch_html_response_with_selenium(url):
     """
     Fetches the HTML response from the given URL using Selenium with Chrome.
@@ -48,110 +44,10 @@ def fetch_html_response_with_selenium(url):
         driver.get(url)
 
         # Scroll down the page to load all content
-        last_height = driver.execute_script("return document.body.scrollHeight")
-        while True:
-            # Scroll down to the bottom
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            # Wait for the page to load more content
-            time.sleep(1)  # Adjust the sleep time as necessary
-            # Calculate new scroll height and compare with last scroll height
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
-                # Check for the button and click it if it exists
-                try:
-                    button = driver.find_element(By.XPATH, "/html/body/shreddit-app/div/div[1]/div/main/div/faceplate-batch/shreddit-comment-tree/faceplate-partial/div[1]/faceplate-tracker/button/span/span[2]")
-                    button.click()
-                    # Wait for the page to load more content after clicking the button
-                    time.sleep(2)  # Adjust the sleep time as necessary
-                    move_cursor_to_center_of_viewport(driver)
-                    # Update the new height after clicking the button
-                    new_height = driver.execute_script("return document.body.scrollHeight")
-                except NoSuchElementException:
-                    # Button not found, exit the loop
-                    break
-            last_height = new_height
+        scroll_down(driver)
 
-        # Initial fetch of the page source
-        page_source = driver.page_source
-
-        # XPATH for "Load X more replies" buttons
-        all_generic_xpath = "//shreddit-comment//a[starts-with(@id, 'comments-permalink-')]/span[@class='text-secondary-weak font-normal'] | //shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
-
-        # For now, we won't be using all_generic_xpath but shallow_generic_xpath
-        # The difference: The latter scrapes only up to depth 4 which is the comment depth limit. Beyond that, clicking on "X more replies" will change the whole page source.
-        shallow_generic_xpath = "//shreddit-comment//faceplate-partial/div[@class='inline-block ml-px']/button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']/span[@class='text-secondary-weak font-normal']"
-
-        # The diff from above is that this one doesn't capture buttons inside a deleted comment (in any depth)
-        shallow_generic_xpath2 = """
-            //shreddit-comment[not(@author='[deleted]') and not(ancestor::shreddit-comment[@author='[deleted]'])]
-            //faceplate-partial/div[@class='inline-block ml-px']
-            /button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']
-            /span[@class='text-secondary-weak font-normal']
-        """
-
-        # Dictionary to keep track of consecutive failures for each button
-        button_failures = {}
-
-        # Initialize the flag to track if any button was clicked
-        at_least_one_clicked = True
-
-        while at_least_one_clicked:
-            # Find all "Load X more replies" buttons only if at least one button was clicked in the previous iteration
-            try:
-                buttons = driver.find_elements(By.XPATH, shallow_generic_xpath2)
-                if not buttons:
-                    print("No 'Load X more replies' buttons found. Exiting loop.")
-                    break
-
-                at_least_one_clicked = False
-                for button in buttons:
-                    button_id = button.id  # Use button's unique ID as a key
-
-                    try:
-                        # Print the button's text if it exists
-                        button_text = button.text
-                        print(f"Clicking button with text: {button_text}")
-
-                        # Scroll the button into view with offset to avoid header overlaps
-                        driver.execute_script("""
-                            arguments[0].scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                        """, button)
-                        time.sleep(1)
-
-                        # Click the button
-                        button.click()
-                        # Reset the failure count for this button
-                        button_failures[button_id] = 0
-                        at_least_one_clicked = True
-
-                    except ElementClickInterceptedException:
-                        print(f"Element click intercepted for button with text: {button_text}")
-                        # Increment the failure count for this button
-                        button_failures[button_id] = button_failures.get(button_id, 0) + 1
-                        if button_failures[button_id] >= 3:
-                            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
-                            # Remove the button from the list
-                            buttons.remove(button)
-
-                    except Exception as e:
-                        print(f"Failed to click button: {e}")
-                        # Increment the failure count for this button
-                        button_failures[button_id] = button_failures.get(button_id, 0) + 1
-                        if button_failures[button_id] >= 3:
-                            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
-                            # Remove the button from the list
-                            buttons.remove(button)
-
-                if at_least_one_clicked:
-                    # Re-fetch the page source only if at least one button was clicked
-                    page_source = driver.page_source
-
-            except NoSuchElementException:
-                print("No 'Load X more replies' buttons found. Exiting loop.")
-                break
+        # Click all 'Load X more replies' buttons
+        click_load_more_buttons(driver)
 
         # Final fetch of the page source after all checks
         page_source = driver.page_source
@@ -161,6 +57,124 @@ def fetch_html_response_with_selenium(url):
         return f"Error fetching the HTML response with Selenium: {e}"
     finally:
         driver.quit()
+
+def scroll_down(driver):
+    """
+    Scroll down the page to load all content.
+    """
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        # Scroll down to the bottom
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # Wait for the page to load more content
+        time.sleep(1)  # Adjust the sleep time as necessary
+        # Calculate new scroll height and compare with last scroll height
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            # Check for the button and click it if it exists
+            try:
+                button = driver.find_element(By.XPATH, "/html/body/shreddit-app/div/div[1]/div/main/div/faceplate-batch/shreddit-comment-tree/faceplate-partial/div[1]/faceplate-tracker/button/span/span[2]")
+                button.click()
+                # Wait for the page to load more content after clicking the button
+                time.sleep(2)  # Adjust the sleep time as necessary
+                move_cursor_to_center_of_viewport(driver)
+                # Update the new height after clicking the button
+                new_height = driver.execute_script("return document.body.scrollHeight")
+            except NoSuchElementException:
+                # Button not found, exit the loop
+                break
+        last_height = new_height
+
+
+def find_load_more_buttons(driver):
+    """
+    Find all 'Load X more replies' buttons on the page.
+    """
+    shallow_generic_xpath2 = """
+        //shreddit-comment[not(@author='[deleted]') and not(ancestor::shreddit-comment[@author='[deleted]'])]
+        //faceplate-partial/div[@class='inline-block ml-px']
+        /button[@class='text-tone-2 text-12 no-underline hover:underline px-xs py-xs flex ml-[3px] xs:ml-0 !bg-transparent !border-0']
+        /span[@class='text-secondary-weak font-normal']
+    """
+    try:
+        buttons = driver.find_elements(By.XPATH, shallow_generic_xpath2)
+        return buttons
+    except NoSuchElementException:
+        print("No 'Load X more replies' buttons found.")
+        return []
+
+def scroll_button_into_view(driver, button):
+    """
+    Scroll the button into view with offset to avoid header overlaps.
+    """
+    driver.execute_script("""
+        arguments[0].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    """, button)
+    time.sleep(1)
+
+def click_button(driver, button, button_failures):
+    """
+    Click a single button and handle exceptions.
+    """
+    button_id = button.id  # Use button's unique ID as a key
+    try:
+        # Print the button's text if it exists
+        button_text = button.text
+        print(f"Clicking button with text: {button_text}")
+
+        # Scroll the button into view
+        scroll_button_into_view(driver, button)
+
+        # Click the button
+        button.click()
+        # Reset the failure count for this button
+        button_failures[button_id] = 0
+        return True
+
+    except ElementClickInterceptedException:
+        print(f"Element click intercepted for button with text: {button_text}")
+        # Increment the failure count for this button
+        button_failures[button_id] = button_failures.get(button_id, 0) + 1
+        if button_failures[button_id] >= 3:
+            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
+        return False
+
+    except Exception as e:
+        print(f"Failed to click button: {e}")
+        # Increment the failure count for this button
+        button_failures[button_id] = button_failures.get(button_id, 0) + 1
+        if button_failures[button_id] >= 3:
+            print(f"Button with text: {button_text} failed to click 3 times. Removing from candidates.")
+        return False
+
+def click_load_more_buttons(driver):
+    """
+    Click all 'Load X more replies' buttons on the page.
+    """
+    # Dictionary to keep track of consecutive failures for each button
+    button_failures = {}
+
+    # Initialize the flag to track if any button was clicked
+    at_least_one_clicked = True
+
+    while at_least_one_clicked:
+        # Find all "Load X more replies" buttons only if at least one button was clicked in the previous iteration
+        buttons = find_load_more_buttons(driver)
+        if not buttons:
+            print("No 'Load X more replies' buttons found. Exiting loop.")
+            break
+
+        at_least_one_clicked = False
+        for button in buttons:
+            if click_button(driver, button, button_failures):
+                at_least_one_clicked = True
+
+        if at_least_one_clicked:
+            # Re-fetch the page source only if at least one button was clicked
+            driver.page_source
     
 def extract_main_content(html_response):
     """
