@@ -291,19 +291,24 @@ def extract_comments_with_tree(main_content):
             if value["comment"]:
                 # Add arrow prefix for replies
                 arrow = "└─► " if key.startswith('reply_') else ""
-                output += f"{prefix}{arrow}{value['author']} | {value['comment']}\n"
+                output += f"{prefix}{arrow}{value['author']} | {value['comment']} | Score: {value['score']}\n"
             
             if value["replies"]:
                 output += pretty_print_comments(value["replies"], indent + 1)
         return output
 
     def extract_comment_and_children(comment_ad):
-        comment_data = {"comment": "", "replies": {}, "author": ""}
+        comment_data = {"comment": "", "replies": {}, "author": "", "score": 0}
         
         # Extract the author name
         author = comment_ad.get('author')
         if author:
             comment_data["author"] = author
+        
+        # Extract the score
+        comment_action_row = comment_ad.find('shreddit-comment-action-row')
+        if comment_action_row and 'score' in comment_action_row.attrs:
+            comment_data["score"] = int(comment_action_row['score'])
         
         # Extract the current comment's content
         comment_rtjson_content = comment_ad.find('div', id=re.compile(r'-comment-rtjson-content$'))
