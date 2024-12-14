@@ -217,45 +217,58 @@ def extract_op(main_content):
         if not shreddit_post:
             return "The 'shreddit-post' tag was not found in the main content."
 
+        combined_text = ""
+
+        # First, look for text content
         text_neutral_content = shreddit_post.find('div', class_="text-neutral-content", slot="text-body")
-        if not text_neutral_content:
-            return "The 'div' with class 'text-neutral-content' and slot 'text-body' was not found in the 'shreddit-post' tag."
+        if text_neutral_content:
+            mb_sm_div = text_neutral_content.find('div', class_="mb-sm mb-xs px-md xs:px-0 overflow-hidden")
+            if mb_sm_div:
+                # Find the div with id starting with "t3_"
+                t3_div = mb_sm_div.find('div', id=re.compile(r'^t3_'))
+                if t3_div:
+                    # List of tags that may contain text
+                    text_tags = ['p', 'li', 'ol', 'ul', 'span', 'strong', 'em', 'a', 'br', 'i', 'b', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
 
-        mb_sm_div = text_neutral_content.find('div', class_="mb-sm mb-xs px-md xs:px-0 overflow-hidden")
-        if not mb_sm_div:
-            return "The 'div' with class 'mb-sm mb-xs px-md xs:px-0 overflow-hidden' was not found in the 'text-neutral-content' div."
+                    # Recursive function to extract text from all relevant tags
+                    def extract_text_from_tag(tag):
+                        text_parts = []
+                        for child in tag.children:
+                            # If the child is a tag in text_tags, it extracts the text
+                            if child.name in text_tags:
+                                text = child.get_text(strip=True)
+                                if text:  # Check if the text is not empty
+                                    text_parts.append(text + '\n')
+                            # If the child has a string content (child.string), it strips the string and appends it 
+                            elif child.string:
+                                text = child.string.strip()
+                                if text:  # Check if the text is not empty
+                                    text_parts.append(text + '\n')
+                            elif child.name:  # Recursively extract text from nested tags
+                                text = extract_text_from_tag(child)
+                                if text:  # Check if the text is not empty
+                                    text_parts.append(text + '\n')
+                        return ' '.join(part for part in text_parts if part)
 
-        # Find the div with id starting with "t3_"
-        t3_div = mb_sm_div.find('div', id=re.compile(r'^t3_'))
-        if not t3_div:
-            return "The 'div' with id 't3_*' was not found in the specified div."
+                    combined_text = extract_text_from_tag(t3_div)
 
-        # List of tags that may contain text
-        text_tags = ['p', 'li', 'ol', 'ul', 'span', 'strong', 'em', 'a', 'br', 'i', 'b', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        # Next, look for image content
+        post_media_container = shreddit_post.find('div', slot="post-media-container")
+        if post_media_container:
+            # Find all images with class="media-lightbox-img"
+            images = post_media_container.find_all('img', {'class': 'media-lightbox-img'})
+            
+            for img in images:
+                image_src = img.get('src')
+                if image_src:
+                    if combined_text:
+                        combined_text += '\n'
+                    combined_text += f"Image: {image_src}\n"
 
-        # Recursive function to extract text from all relevant tags
-        def extract_text_from_tag(tag):
-            text_parts = []
-            for child in tag.children:
-                # If the child is a tag in text_tags, it extracts the text
-                if child.name in text_tags:
-                    text = child.get_text(strip=True)
-                    if text:  # Check if the text is not empty
-                        text_parts.append(text + '\n')
-                # If the child has a string content (child.string), it strips the string and appends it 
-                elif child.string:
-                    text = child.string.strip()
-                    if text:  # Check if the text is not empty
-                        text_parts.append(text + '\n')
-                elif child.name:  # Recursively extract text from nested tags
-                    text = extract_text_from_tag(child)
-                    if text:  # Check if the text is not empty
-                        text_parts.append(text + '\n')
-            return ' '.join(part for part in text_parts if part)
+        if not combined_text:
+            return "No text or image found in the 'shreddit-post' tag."
 
-        combined_text = extract_text_from_tag(t3_div)
-        
-        return combined_text
+        return combined_text.strip()
     except AttributeError:
         return "An unexpected error occurred while navigating the HTML structure."
     
@@ -318,6 +331,10 @@ def extract_comments_with_tree(main_content):
                 # Extract quotes and paragraphs
                 p_tags = post_rtjson_content.find_all('p')
                 quote_blocks = post_rtjson_content.find_all('blockquote')
+
+                # Extract images
+                images = post_rtjson_content.find_all('img', recursive=True)
+                image_links = [f"Image: {img['src']}" for img in images if 'src' in img.attrs]
                 
                 # Process all paragraphs, inserting quotes where they appear
                 comment_parts = []
@@ -334,6 +351,10 @@ def extract_comments_with_tree(main_content):
                             comment_parts.append(quote_text)
                 
                 comment_text = ' '.join(comment_parts)
+
+                # Add image links to the comment text
+                if image_links:
+                    comment_text = f"{comment_text} {' '.join(image_links)}"
                 if comment_text:
                     comment_data["comment"] = comment_text
 
