@@ -317,15 +317,25 @@ def extract_comments_with_tree(main_content):
             if post_rtjson_content:
                 # Extract quotes and paragraphs
                 p_tags = post_rtjson_content.find_all('p')
-                quote_block = post_rtjson_content.find('blockquote')
-                quote_text = ''
-                if quote_block:
-                    quote_text = 'In response to: ' + ' '.join([p.get_text(strip=True) for p in quote_block.find_all('p')]) + '\n'
-                    p_tags = p_tags[1:]
+                quote_blocks = post_rtjson_content.find_all('blockquote')
                 
-                comment_text = ' '.join([p.get_text(strip=True) for p in p_tags])
+                # Process all paragraphs, inserting quotes where they appear
+                comment_parts = []
+                current_p_index = 0
+                
+                for p in p_tags:
+                    # Check if this p tag is inside any blockquote
+                    if not any(p in quote.find_all('p') for quote in quote_blocks):
+                        comment_parts.append(p.get_text(strip=True))
+                        # Check if the next element is a blockquote
+                        next_elem = p.find_next_sibling()
+                        if next_elem and next_elem.name == 'blockquote':
+                            quote_text = '(In response to: ' + ' '.join([qp.get_text(strip=True) for qp in next_elem.find_all('p')]) + ')'
+                            comment_parts.append(quote_text)
+                
+                comment_text = ' '.join(comment_parts)
                 if comment_text:
-                    comment_data["comment"] = quote_text + comment_text
+                    comment_data["comment"] = comment_text
 
         # Recursively extract child comments
         child_comments = comment_ad.find_all('shreddit-comment', attrs={'author': lambda x: x != '[deleted]'}, recursive=False)
