@@ -1,9 +1,9 @@
 import requests
 import json
 
-SYSTEM_PROMPT = """Analyze the comments and their corresponding scores to determine the most reliable information. Prioritize comments with the highest scores, as they indicate strong user agreement. Consider the hierarchical structure of comments and their subcomments to identify supporting or conflicting viewpoints. Summarize the key points and conclusions based on the most highly-rated information."""
+SYSTEM_PROMPT = """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
 
-def send_vllm_request(chat_history, api_key, temperature=0.3, max_tokens=1024, stream=False):
+def send_vllm_request(chat_history, api_key, temperature=0.3, max_tokens=8192, stream=False):
     """
     Sends a request to the vLLM server with the given context and returns the response.
     """
@@ -16,8 +16,8 @@ def send_vllm_request(chat_history, api_key, temperature=0.3, max_tokens=1024, s
         "model": "/home/kubilay/Projects/llm/models/Meta-Llama-3.1-8B-Instruct-Q5_K_M.gguf",
         "messages": chat_history,
         "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": stream
+        "stream": stream,
+        "stop_token_ids": [128001, 128009]
     }
 
     response = requests.post(url, headers=headers, json=data, stream=stream)
@@ -27,21 +27,14 @@ def send_vllm_request(chat_history, api_key, temperature=0.3, max_tokens=1024, s
         print(f"Request failed with status code: {response.status_code}")
         return None
 
-def chat_with_vllm(api_key, stream=False):
+def chat_with_vllm(api_key, chat_history, stream=False, prompt_user=True):
     """
     Starts a chat session with the vLLM server.
     """
-    chat_history = []
-    # Add system prompt
-    system_message = {
-        "role": "system", 
-        "content": SYSTEM_PROMPT
-    }
-    chat_history.append(system_message)
-
     while True:
-        user_input = input("You: ")
-        chat_history.append({"role": "user", "content": user_input})
+        if prompt_user:
+            user_input = input("You: ")
+            chat_history.append({"role": "user", "content": user_input})
         
         if stream:
             print("LLM: ", end="", flush=True)
@@ -71,9 +64,21 @@ def chat_with_vllm(api_key, stream=False):
             if response:
                 response_json = response.json()
                 llm_response = response_json.get('choices', [{}])[0].get('message', {}).get('content', '')
-                print(f"LLM: {llm_response}")
+                print(f"LLM: {llm_response}")  
                 chat_history.append({"role": "assistant", "content": llm_response})
 
+        if not prompt_user:
+            break
+
 if __name__ == "__main__":
+    chat_history = []
     api_key = "token-abc123"
-    chat_with_vllm(api_key, stream=False)  # Set stream=True to enable streaming
+
+    # Add system prompt
+    system_message = {
+        "role": "system", 
+        "content": SYSTEM_PROMPT
+    }
+
+    chat_history.append(system_message)
+    chat_with_vllm(api_key, chat_history, stream=True)  # Set stream=True to enable streaming
