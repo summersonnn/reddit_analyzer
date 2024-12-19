@@ -8,6 +8,10 @@ from scrape_functions import (
 from llm_talk import chat_with_vllm
 import json
 
+def dummy_analyze(url):
+    html_response = fetch_html_response_with_selenium(url)
+    return html_response
+
 def analyze_reddit_thread(url, api_key="token-abc123"):
     # Fetch the HTML response using Selenium
     html_response = fetch_html_response_with_selenium(url)

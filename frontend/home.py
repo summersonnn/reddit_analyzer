@@ -2,12 +2,12 @@ import sys
 import os
 
 import streamlit as st
-from analysis import analysis_page
+from analysis import analysis_page, dummy_analysis_page
 
 # Add parent directory to path to allow importing scrape
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scrape import analyze_reddit_thread
+from scrape import analyze_reddit_thread, dummy_analyze
 
 # Configure the default settings
 st.set_page_config(
@@ -69,7 +69,8 @@ def home_page():
         if st.button("Analyze"):
             if url:
                 # Call the analyze_reddit_thread function
-                analysis_result = analyze_reddit_thread(url)
+                # analysis_result = analyze_reddit_thread(url)
+                analysis_result = dummy_analyze(url)
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page
@@ -112,7 +113,7 @@ def main():
     if st.session_state.page == "home":
         home_page()
     else:
-        analysis_page(st.session_state.analysis_result)
+        dummy_analysis_page(st.session_state.analysis_result)
 
 if __name__ == "__main__":
     main()

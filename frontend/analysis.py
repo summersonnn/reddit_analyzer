@@ -60,3 +60,16 @@ def analysis_page(analysis_result):
     if st.button("⬅️ Analyze Another URL"):
         st.session_state.page = "home"
         st.rerun()
+
+def dummy_analysis_page(analysis_result):
+    # Header
+    st.markdown("""
+        <div class="main-header">
+            <p class="header-text">📊 Analysis Results</p>
+            <p class="subheader-text">Detailed insights for: {}</p>
+        </div>
+    """.format(st.session_state.get('url', 'Unknown URL')), unsafe_allow_html=True)
+
+    # Display the analysis result as a paragraph
+    st.markdown("### 📝 Analysis Summary")
+    st.markdown(f"<p style='font-size: 16px;'>{analysis_result}</p>", unsafe_allow_html=True)

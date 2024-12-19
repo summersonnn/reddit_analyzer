@@ -1,6 +1,7 @@
 import requests
 import re
 import time
+import os
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -9,6 +10,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, NoSuchElementException, ElementClickInterceptedException
 from selenium.webdriver.common.action_chains import ActionChains
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
+
+CLOUD = True
 
 def fetch_html_response_with_selenium(url):
     """
@@ -16,20 +21,36 @@ def fetch_html_response_with_selenium(url):
     """
     # Set up Chrome options
     chrome_options = Options()
-    # chrome_options.add_argument("--headless")  # Run Chrome in headless mode
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")  # Often necessary in headless mode
+    chrome_options.add_argument("--no-sandbox")  # Important for running Chrome in Docker/containers
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Overcomes limited resource problems
+    chrome_options.add_argument("--window-size=1920,1080") # Set a window size
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-setuid-sandbox") # Additional sandboxing option
 
-    # Path to the ChromeDriver (update this path as necessary)
-    chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
 
-    # Initialize the Chrome WebDriver
-    service = Service(chromedriver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    if CLOUD:
+        chrome_options.add_argument("--headless")  # Run Chrome in headless mode
+        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        driver = webdriver.Chrome(service=service,options=chrome_options)
+    else:
+        # Path to the ChromeDriver (update this path as necessary)
+        chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
+
+        # Initialize the Chrome WebDriver
+        service = Service(chromedriver_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
 
     try:
         # Open the URL
         driver.get(url)
+
+        page_source = driver.page_source
+        leng = len(page_source)
+        os.write(1, b'EEEEEEEEEEEEEEE')
+        os.write(1, f"{page_source}\n".encode()) 
+        os.write(1, f"{leng}\n".encode()) 
 
         # Scroll down the page to load all content
         scroll_down(driver)

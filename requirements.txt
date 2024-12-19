@@ -24,11 +24,14 @@ protobuf==5.28.3
 pyOpenSSL==24.2.1
 pytest==8.3.3
 railroad==0.5.0
-selenium==4.27.1
+#selenium==4.27.1
+seleniumbase
 simplejson==3.19.3
 Sphinx==8.1.3
+streamlit
 thread==2.0.5
 toml==0.10.2
 tornado==6.4.2
 zipp==3.20.2
 zstandard==0.22.0
+webdriver-manager
