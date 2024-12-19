@@ -1,6 +1,51 @@
-from scrape_functions import extract_main_content, extract_shreddit_title_from_main_content, extract_op, fetch_html_response_with_selenium, extract_comments_with_tree
+from scrape_functions import (
+    extract_main_content,
+    extract_shreddit_title_from_main_content,
+    extract_op,
+    fetch_html_response_with_selenium,
+    extract_comments_with_tree
+)
 from llm_talk import chat_with_vllm
 import json
+
+def analyze_reddit_thread(url, api_key="token-abc123"):
+    # Fetch the HTML response using Selenium
+    html_response = fetch_html_response_with_selenium(url)
+    
+    # Extract main content, title, original post, and comments
+    main_content = extract_main_content(html_response)
+    title = extract_shreddit_title_from_main_content(main_content)
+    original_post = extract_op(main_content)
+    comments = extract_comments_with_tree(main_content)
+    
+    # Combine all scraped parts into a single variable with appropriate tags
+    scraped_data = {
+        "title": title,
+        "original_post": original_post,
+        "comments": comments
+    }
+    
+    # System prompt for the LLM
+    system_message = {
+        "role": "system", 
+        "content": """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
+    }
+    
+    # Initialize chat history with system message
+    chat_history = [system_message]
+    
+    # Format scraped data as a user message
+    user_message = {
+        "role": "user", 
+        "content": json.dumps(scraped_data, indent=4)  # Convert to JSON string for readability
+    }
+    
+    chat_history.append(user_message)
+    
+    # Interact with the LLM and get the result
+    result = chat_with_vllm(api_key, chat_history, stream=False, prompt_user=False)
+    
+    return result
 
 test_links = [
     "https://www.reddit.com/r/LocalLLaMA/comments/1hdaytv/deepseekaideepseekvl2_hugging_face/",  # blockquotes, image comments
@@ -11,44 +56,5 @@ test_links = [
     "https://www.reddit.com/r/LocalLLaMA/comments/1hefbq1/coheres_new_model_is_epic/"
 ]
 
-# Example usage
-url = test_links[-1] # Replace with the desired URL
-html_response = fetch_html_response_with_selenium(url)
-
-main_content = extract_main_content(html_response)
-title = extract_shreddit_title_from_main_content(main_content)
-# print(title)
-
-original_post = extract_op(main_content)
-# print(original_post)
-
-comments = extract_comments_with_tree(main_content)
-# print(comments["pretty"])
-
-# Combine all scraped parts into a single variable with appropriate tags
-scraped_data = {
-    "title": title,
-    "original_post": original_post,
-    "comments": comments
-}
-
-# -------------------------------LLM section-------------------------------
-api_key = "token-abc123"
-
-# Add system prompt
-system_message = {
-    "role": "system", 
-    "content": """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
-}
-
-chat_history = []
-chat_history.append(system_message)
-# Format scraped data as a user message
-user_message = {
-    "role": "user", 
-    "content": json.dumps(scraped_data, indent=4)  # Convert to JSON string for readability
-}
-
-chat_history.append(user_message)
-
-chat_with_vllm(api_key, chat_history, stream=True, prompt_user=False)
+if __name__ == "__main__":
+    analyze_reddit_thread(test_links[-1])

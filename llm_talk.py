@@ -3,7 +3,7 @@ import json
 
 SYSTEM_PROMPT = """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
 
-def send_vllm_request(chat_history, api_key, temperature=0.3, max_tokens=8192, stream=False):
+def send_vllm_request(chat_history, api_key, temperature=0.3, stream=False):
     """
     Sends a request to the vLLM server with the given context and returns the response.
     """
@@ -59,6 +59,7 @@ def chat_with_vllm(api_key, chat_history, stream=False, prompt_user=True):
                                 continue
             print()  # New line after streaming completes
             chat_history.append({"role": "assistant", "content": response_text})
+            return response_text
         else:
             response = send_vllm_request(chat_history, api_key)
             if response:
@@ -66,6 +67,7 @@ def chat_with_vllm(api_key, chat_history, stream=False, prompt_user=True):
                 llm_response = response_json.get('choices', [{}])[0].get('message', {}).get('content', '')
                 print(f"LLM: {llm_response}")  
                 chat_history.append({"role": "assistant", "content": llm_response})
+                return llm_response
 
         if not prompt_user:
             break
