@@ -1,7 +1,6 @@
 import requests
 import re
 import time
-import random
 import os
 
 from bs4 import BeautifulSoup
@@ -13,6 +12,8 @@ from selenium.common.exceptions import WebDriverException, NoSuchElementExceptio
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 CLOUD = True
 
@@ -22,40 +23,36 @@ def fetch_html_response_with_selenium(url):
     """
     # Set up Chrome options
     chrome_options = Options()
-    chrome_options.add_argument("--disable-gpu")
+
+    # Basic options
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-setuid-sandbox")
     chrome_options.add_argument("--headless")
+    
+    # Enhanced stealth options
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_argument(f'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36')
     
-    # Add custom preferences to better mask automation
-    chrome_prefs = {
-        "profile.default_content_setting_values.notifications": 2,
-        "credentials_enable_service": False,
-        "profile.password_manager_enabled": False,
-    }
-    chrome_options.add_experimental_option("prefs", chrome_prefs)
-
-    # Randomize user agent slightly (still keeping it realistic)
-    chrome_versions = ['108.0.0.0', '109.0.0.0', '110.0.0.0']
-    random_chrome = random.choice(chrome_versions)
-    user_agent = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random_chrome} Safari/537.36'
-    chrome_options.add_argument(f'user-agent={user_agent}')
+    # Additional performance options
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-notifications")
+    chrome_options.add_argument("--disable-popup-blocking")
 
     if CLOUD:
+        # Add additional stealth settings for cloud environment
+        chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
+        chrome_options.add_argument('--disable-site-isolation-trials')
+        # Add other cloud-specific options
+        chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
+        chrome_options.add_argument('--disable-site-isolation-trials')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument('--ignore-ssl-errors')
+        
         service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        # Execute CDP commands to mask automation
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        # Add a small random delay to seem more human-like
-        time.sleep(random.uniform(1, 3))
     else:
         # Path to the ChromeDriver (update this path as necessary)
         chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
@@ -64,12 +61,17 @@ def fetch_html_response_with_selenium(url):
         service = Service(chromedriver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
+        # Additional stealth measures after driver initialization
+    driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": driver.execute_script("return navigator.userAgent")})
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
     try:
         # Open the URL
         driver.get(url)
-        page_source = driver.page_source
-
-        os.write(1, f"{page_source}\n".encode()) 
+        os.write(1, b"Waiting.......................")
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id^="comment-tree-content-anchor-"]'))
+        )
 
         # Scroll down the page to load all content
         scroll_down(driver)
@@ -437,6 +439,7 @@ def extract_comments_with_tree(main_content):
 
     except AttributeError:
         return "An error occurred while extracting comments."
+    
 
 
 
