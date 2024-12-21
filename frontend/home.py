@@ -70,7 +70,7 @@ def home_page():
             if url:
                 # Call the analyze_reddit_thread function
                 analysis_result = analyze_reddit_thread(url)
-                #analysis_result = dummy_analyze(url)
+                # analysis_result = dummy_analyze(url)
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page
