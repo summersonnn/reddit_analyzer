@@ -13,7 +13,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 
-CLOUD = True
+CLOUD = False
 
 def fetch_html_response_with_selenium(url):
     """
@@ -45,12 +45,6 @@ def fetch_html_response_with_selenium(url):
     try:
         # Open the URL
         driver.get(url)
-
-        page_source = driver.page_source
-        leng = len(page_source)
-        os.write(1, b'EEEEEEEEEEEEEEE')
-        os.write(1, f"{page_source}\n".encode()) 
-        os.write(1, f"{leng}\n".encode()) 
 
         # Scroll down the page to load all content
         scroll_down(driver)
