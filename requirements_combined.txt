@@ -105,7 +105,7 @@ tqdm==4.67.0  # Tim's
 typing_extensions==4.12.2  # Tim's
 tzdata==2024.2  # Tim's
 urllib3==2.2.3  # Tim's
-vllm==0.6.4.post1
+# vllm==0.6.4.post1
 watchdog==5.0.3  # Tim's
 webdriver_manager
 xyzservices==2024.9.0  # Tim's

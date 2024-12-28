@@ -15,7 +15,7 @@ from webdriver_manager.core.os_manager import ChromeType
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-CLOUD = False
+CLOUD = True
 
 def fetch_html_response_with_selenium(url):
     """
@@ -42,6 +42,7 @@ def fetch_html_response_with_selenium(url):
     chrome_options.add_argument("--disable-popup-blocking")
 
     if CLOUD:
+        print("CLOUDDDDDDDDDDDDDDD")
         # Add additional stealth settings for cloud environment
         chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
         chrome_options.add_argument('--disable-site-isolation-trials')
@@ -51,9 +52,14 @@ def fetch_html_response_with_selenium(url):
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--ignore-ssl-errors')
         
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        # Use the environment variable set in the Dockerfile
+        chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+
+        # Create a new instance of the Chrome driver
+        service = Service(executable_path=chromedriver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
     else:
+        print("LOCALLLLLLLLLLLLLLLLL")
         # Path to the ChromeDriver (update this path as necessary)
         # chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
         chromedriver_path = '/usr/local/bin/chromedriver-linux64/chromedriver'
