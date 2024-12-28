@@ -69,8 +69,8 @@ def home_page():
         if st.button("Analyze"):
             if url:
                 # Call the analyze_reddit_thread function
-                # analysis_result = analyze_reddit_thread(url)
-                analysis_result = dummy_analyze(url)
+                analysis_result = analyze_reddit_thread(url)
+                # analysis_result = dummy_analyze(url)
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page
@@ -113,7 +113,7 @@ def main():
     if st.session_state.page == "home":
         home_page()
     else:
-        dummy_analysis_page(st.session_state.analysis_result)
+        analysis_page(st.session_state.analysis_result)
 
 if __name__ == "__main__":
     main()

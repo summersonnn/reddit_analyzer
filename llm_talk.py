@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 
 SYSTEM_PROMPT = """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
 
@@ -7,7 +8,8 @@ def send_vllm_request(chat_history, api_key, temperature=0.3, stream=False):
     """
     Sends a request to the vLLM server with the given context and returns the response.
     """
-    url = "http://localhost:8000/v1/chat/completions"
+    host_ip = os.environ.get("HOST_IP")
+    url = f"http://{host_ip}:8000/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "text/event-stream" if stream else "application/json"
@@ -74,7 +76,7 @@ def chat_with_vllm(api_key, chat_history, stream=False, prompt_user=True):
 
 if __name__ == "__main__":
     chat_history = []
-    api_key = "token-abc123"
+    api_key = os.getenv("VLLM_API_KEY")
 
     # Add system prompt
     system_message = {

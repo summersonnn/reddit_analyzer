@@ -15,7 +15,7 @@ from webdriver_manager.core.os_manager import ChromeType
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-CLOUD = True
+CLOUD = False
 
 def fetch_html_response_with_selenium(url):
     """
@@ -55,8 +55,9 @@ def fetch_html_response_with_selenium(url):
         driver = webdriver.Chrome(service=service, options=chrome_options)
     else:
         # Path to the ChromeDriver (update this path as necessary)
-        chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
-
+        # chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
+        chromedriver_path = '/usr/local/bin/chromedriver-linux64/chromedriver'
+        
         # Initialize the Chrome WebDriver
         service = Service(chromedriver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -440,6 +441,7 @@ def extract_comments_with_tree(main_content):
     except AttributeError:
         return "An error occurred while extracting comments."
     
+
 
 
 

@@ -6,13 +6,15 @@ from scrape_functions import (
     extract_comments_with_tree
 )
 from llm_talk import chat_with_vllm
+from llm_api import chat_with_deepinfra
 import json
+import os
 
 def dummy_analyze(url):
     html_response = fetch_html_response_with_selenium(url)
     return html_response
 
-def analyze_reddit_thread(url, api_key="token-abc123"):
+def analyze_reddit_thread(url):
     # Fetch the HTML response using Selenium
     html_response = fetch_html_response_with_selenium(url)
     
@@ -45,9 +47,13 @@ def analyze_reddit_thread(url, api_key="token-abc123"):
     }
     
     chat_history.append(user_message)
-    
-    # Interact with the LLM and get the result
-    result = chat_with_vllm(api_key, chat_history, stream=False, prompt_user=False)
+
+    # # For local LLM (vLLM)
+    # api_key = os.getenv("VLLM_API_KEY")
+    # result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
+
+    api_key = os.getenv("DEEPINFRA_API_KEY")
+    result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
     
     return result
 
