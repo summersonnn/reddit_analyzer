@@ -10,12 +10,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, NoSuchElementException, ElementClickInterceptedException
 from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
-CLOUD = True
 
 def fetch_html_response_with_selenium(url):
     """
@@ -41,42 +37,21 @@ def fetch_html_response_with_selenium(url):
     chrome_options.add_argument("--disable-notifications")
     chrome_options.add_argument("--disable-popup-blocking")
 
-    if CLOUD:
-        print("CLOUDDDDDDDDDDDDDDD")
-        # Add additional stealth settings for cloud environment
-        chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
-        chrome_options.add_argument('--disable-site-isolation-trials')
-        # Add other cloud-specific options
-        chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
-        chrome_options.add_argument('--disable-site-isolation-trials')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--ignore-ssl-errors')
-        
-        # Use the environment variable set in the Dockerfile
-        chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+    # Add other cloud-specific options
+    chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
+    chrome_options.add_argument('--disable-site-isolation-trials')
+    
+    # Use the environment variable set in the Dockerfile
+    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
 
-        # Create a new instance of the Chrome driver
-        service = Service(executable_path=chromedriver_path)
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-    else:
-        print("LOCALLLLLLLLLLLLLLLLL")
-        # Path to the ChromeDriver (update this path as necessary)
-        # chromedriver_path = '/home/kubilay/Downloads/chromedriver-linux64/chromedriver'
-        chromedriver_path = '/usr/local/bin/chromedriver-linux64/chromedriver'
-        
-        # Initialize the Chrome WebDriver
-        service = Service(chromedriver_path)
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
-        # Additional stealth measures after driver initialization
-    driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": driver.execute_script("return navigator.userAgent")})
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    # Create a new instance of the Chrome driver
+    service = Service(executable_path=chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
 
     try:
         # Open the URL
         driver.get(url)
-        os.write(1, b"Waiting.......................")
-        WebDriverWait(driver, 20).until(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id^="comment-tree-content-anchor-"]'))
         )
 
