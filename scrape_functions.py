@@ -40,7 +40,7 @@ def fetch_html_response_with_selenium(url):
     # Add other cloud-specific options
     chrome_options.add_argument('--disable-features=IsolateOrigins,site-per-process')
     chrome_options.add_argument('--disable-site-isolation-trials')
-    
+
     # Use the environment variable set in the Dockerfile
     chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
 
@@ -51,6 +51,7 @@ def fetch_html_response_with_selenium(url):
     try:
         # Open the URL
         driver.get(url)
+        
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'div[id^="comment-tree-content-anchor-"]'))
         )
