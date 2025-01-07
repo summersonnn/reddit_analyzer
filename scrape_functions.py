@@ -8,9 +8,17 @@ def fetch_json_response(url):
         # Append .json to the URL if it's not already present
         if not url.endswith('.json'):
             url += '.json'
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        }
+        proxies = {
+            'http': 'http://kyazogluu5:uQu1JGUHp1ymRRkbHMcE@core-residential.evomi.com:1000',
+            'https': 'http://kyazogluu5:uQu1JGUHp1ymRRkbHMcE@core-residential.evomi.com:1000'
+        }
         
         # Send a GET request to the URL
-        response = requests.get(url)
+        response = requests.get(url, headers=headers, proxies=proxies)
         
         # Raise an exception if the request was unsuccessful
         response.raise_for_status()
@@ -18,7 +26,7 @@ def fetch_json_response(url):
         # Parse the JSON response
         json_data = response.json()
         
-        return json_data
+        return json_data # type: list
 
     except requests.exceptions.RequestException as e:
         return f"Error fetching the JSON response: {e}"

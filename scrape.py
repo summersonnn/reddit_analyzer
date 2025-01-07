@@ -16,6 +16,7 @@ def dummy_analyze(url):
 def analyze_reddit_thread(url):
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
+    return json_response
     
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
