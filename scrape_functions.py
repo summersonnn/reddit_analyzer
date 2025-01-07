@@ -1,11 +1,4 @@
 import requests
-import re
-import time
-import os
-
-from bs4 import BeautifulSoup
-
-import requests
 
 def fetch_json_response(url):
     """
@@ -196,15 +189,15 @@ def prettify_comments(comments):
     return formatted_comments
 
 
-url = "https://www.reddit.com/r/LocalLLaMA/comments/1hr4ifw/bytedance_research_introduces_158bit_flux_a_new/"
-json_response = fetch_json_response(url)
+# url = "https://www.reddit.com/r/LocalLLaMA/comments/1hr4ifw/bytedance_research_introduces_158bit_flux_a_new/"
+# json_response = fetch_json_response(url)
 
-# title, content = return_OP(json_response)
-# print("Title:", title)
-# print("Content:", content)
+# # title, content = return_OP(json_response)
+# # print("Title:", title)
+# # print("Content:", content)
 
-comments = return_comments(json_response)
-pretty_comments = prettify_comments(comments)
-print(pretty_comments)
+# comments = return_comments(json_response)
+# pretty_comments = prettify_comments(comments)
+# print(pretty_comments)
 
 

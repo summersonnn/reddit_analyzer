@@ -1,11 +1,10 @@
 from scrape_functions import (
-    extract_main_content,
-    extract_shreddit_title_from_main_content,
-    extract_op,
-    fetch_html_response_with_selenium,
-    extract_comments_with_tree
+    fetch_json_response,
+    return_OP,
+    return_comments
 )
-from llm_talk import chat_with_vllm
+
+# from llm_talk import chat_with_vllm
 from llm_api import chat_with_deepinfra
 import json
 import os
@@ -16,13 +15,10 @@ def dummy_analyze(url):
 
 def analyze_reddit_thread(url):
     # Fetch the HTML response using Selenium
-    html_response = fetch_html_response_with_selenium(url)
+    json_response = fetch_json_response(url)
     
-    # Extract main content, title, original post, and comments
-    main_content = extract_main_content(html_response)
-    title = extract_shreddit_title_from_main_content(main_content)
-    original_post = extract_op(main_content)
-    comments = extract_comments_with_tree(main_content)
+    title, original_post = return_OP(json_response)
+    comments = return_comments(json_response)
     
     # Combine all scraped parts into a single variable with appropriate tags
     scraped_data = {
