@@ -16,7 +16,6 @@ def dummy_analyze(url):
 def analyze_reddit_thread(url):
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
-    return json_response
     
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
@@ -49,9 +48,12 @@ def analyze_reddit_thread(url):
     # api_key = os.getenv("VLLM_API_KEY")
     # result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
 
-    api_key = os.getenv("DEEPINFRA_API_KEY")
+    try:
+        api_key = os.getenv("DEEPINFRA_API_KEY")
+    except:
+        api_key = st.secrets['DEEPINFRA_API_KEY']
+
     result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
-    
     return result
 
 test_links = [
