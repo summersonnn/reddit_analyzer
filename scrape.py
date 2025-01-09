@@ -6,6 +6,7 @@ from scrape_functions import (
 
 # from llm_talk import chat_with_vllm
 from llm_api import chat_with_deepinfra
+from llm_talk import send_vllm_request
 import json
 import os
 
@@ -41,29 +42,19 @@ def analyze_reddit_thread(url):
         "role": "user", 
         "content": json.dumps(scraped_data, indent=4)  # Convert to JSON string for readability
     }
-    
     chat_history.append(user_message)
 
-    # # For local LLM (vLLM)
-    # api_key = os.getenv("VLLM_API_KEY")
-    # result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
 
-    try:
-        api_key = os.getenv("DEEPINFRA_API_KEY")
-    except:
-        api_key = st.secrets['DEEPINFRA_API_KEY']
+    USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
-    result = chat_with_deepinfra(api_key, chat_history, stream=False, prompt_user=False)
+    if USE_LOCAL_LLM:
+        api_key = os.getenv("VLLM_API_KEY")
+        result = send_vllm_request(chat_history, api_key, stream=False)
+    else:
+        try:
+            api_key = os.getenv("CLOUD_LLM_API_KEY")
+        except:
+            api_key = st.secrets['CLOUD_LLM_API_KEY']
+        result = chat_with_deepinfra(api_key, chat_history, stream=False)
     return result
 
-test_links = [
-    "https://www.reddit.com/r/LocalLLaMA/comments/1hdaytv/deepseekaideepseekvl2_hugging_face/",  # blockquotes, image comments
-    "https://www.reddit.com/r/LocalLLaMA/comments/1he1rli/qwen_dev_new_stuff_very_soon/", # image post
-    "https://www.reddit.com/r/LocalLLaMA/comments/1hdnm40/til_llama_33_can_do_multiple_tool_calls_and_tool/", # gif post
-    "https://www.reddit.com/r/LocalLLaMA/comments/1heemer/the_absolute_best_coding_model_that_can_fit_on/", # short thread, fast test
-    "https://www.reddit.com/r/LocalLLaMA/comments/1hegcl0/where_do_you_think_the_cutoff_is_for_a_model_to/", # short thread, fast test
-    "https://www.reddit.com/r/LocalLLaMA/comments/1hefbq1/coheres_new_model_is_epic/"
-]
-
-if __name__ == "__main__":
-    analyze_reddit_thread(test_links[-1])

@@ -1,4 +1,6 @@
 import requests
+import os
+
 
 def fetch_json_response(url):
     """
@@ -12,13 +14,20 @@ def fetch_json_response(url):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
-        proxies = {
-            'http': 'http://kyazogluu5:uQu1JGUHp1ymRRkbHMcE@core-residential.evomi.com:1000',
-            'https': 'http://kyazogluu5:uQu1JGUHp1ymRRkbHMcE@core-residential.evomi.com:1000'
-        }
-        
-        # Send a GET request to the URL
-        response = requests.get(url, headers=headers, proxies=proxies)
+        USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
+
+        # Using Local LLM directly means not using proxy because scraping reddit is OK with home IP. But if it turns out to be an issue, separate this logic.
+        if USE_LOCAL_LLM:
+            response = requests.get(url, headers=headers)
+        else:
+            http_proxy = os.getenv("PROXY_HTTP")
+            https_proxy = os.getenv("PROXY_HTTPS")
+            proxies = {
+                'http': http_proxy,
+                'https': https_proxy
+            }
+            response = requests.get(url, headers=headers, proxies=proxies)
+
         
         # Raise an exception if the request was unsuccessful
         response.raise_for_status()
@@ -195,17 +204,5 @@ def prettify_comments(comments):
         formatted_comments += format_comment(comment)
 
     return formatted_comments
-
-
-# url = "https://www.reddit.com/r/LocalLLaMA/comments/1hr4ifw/bytedance_research_introduces_158bit_flux_a_new/"
-# json_response = fetch_json_response(url)
-
-# # title, content = return_OP(json_response)
-# # print("Title:", title)
-# # print("Content:", content)
-
-# comments = return_comments(json_response)
-# pretty_comments = prettify_comments(comments)
-# print(pretty_comments)
 
 

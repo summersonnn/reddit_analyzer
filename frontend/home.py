@@ -1,4 +1,5 @@
 import sys
+from dotenv import load_dotenv
 import os
 
 import streamlit as st
@@ -8,6 +9,8 @@ from analysis import analysis_page, dummy_analysis_page
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scrape import analyze_reddit_thread, dummy_analyze
+
+load_dotenv()
 
 # Configure the default settings
 st.set_page_config(
@@ -70,6 +73,7 @@ def home_page():
             if url:
                 # Call the analyze_reddit_thread function
                 analysis_result = analyze_reddit_thread(url)
+                print(analysis_result)
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page
