@@ -1,10 +1,13 @@
 import requests
 import os
+import time
+import random
 
-
-def fetch_json_response(url):
+def fetch_json_response(url, max_retries=4):
     """
     Fetches the JSON response from the given URL using the requests package.
+    Implements a retry mechanism with a random delay if the response is not genuine.
+    Uses proxy by default unless USE_LOCAL_LLM is True.
     """
     try:
         # Append .json to the URL if it's not already present
@@ -16,28 +19,61 @@ def fetch_json_response(url):
         }
         USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
-        # Using Local LLM directly means not using proxy because scraping reddit is OK with home IP. But if it turns out to be an issue, separate this logic.
-        if USE_LOCAL_LLM:
-            response = requests.get(url, headers=headers)
-        else:
-            http_proxy = os.getenv("PROXY_HTTP")
-            https_proxy = os.getenv("PROXY_HTTPS")
-            proxies = {
-                'http': http_proxy,
-                'https': https_proxy
-            }
-            response = requests.get(url, headers=headers, proxies=proxies)
+        for attempt in range(max_retries):
+            try:
+                # Determine if proxy should be used
+                # Use proxy if not using local LLM, or if using local LLM and it's the last attempt
+                use_proxy = not USE_LOCAL_LLM or (USE_LOCAL_LLM and attempt == max_retries - 1)
+                
+                if use_proxy:
+                    if USE_LOCAL_LLM and attempt == max_retries - 1:
+                        print("Final attempt - trying with proxy...")
+                    http_proxy = os.getenv("PROXY_HTTP") 
+                    https_proxy = os.getenv("PROXY_HTTPS")
+                    proxies = {
+                        'http': http_proxy,
+                        'https': https_proxy
+                    }
+                    response = requests.get(url, headers=headers, proxies=proxies)
+                else:
+                    response = requests.get(url, headers=headers)
 
-        
-        # Raise an exception if the request was unsuccessful
-        response.raise_for_status()
-        
-        # Parse the JSON response
-        json_data = response.json()
-        
-        return json_data # type: list
+                # Raise an exception if the request was unsuccessful
+                response.raise_for_status()
 
-    except requests.exceptions.RequestException as e:
+                # Convert the response content to a string
+                response_text = response.text
+
+                # Check if the response contains the expected strings
+                if all(keyword in response_text for keyword in ["author", "replies", "depth"]):
+                    # Parse the JSON response only if it's genuine
+                    json_data = response.json()
+                    return json_data  # type: list
+                else:
+                    print(response_text)
+                    print("Unable to fetch a genuine response...")
+                    # If using proxy (either because USE_LOCAL_LLM is False or it's the final attempt),
+                    # don't retry after a proxy failure
+                    if use_proxy:
+                        return "Error: Proxy attempt failed to fetch genuine response"
+                    # Only continue retrying if we're using local LLM and not yet at the proxy attempt
+                    delay = random.randint(1, 15)
+                    time.sleep(delay)
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                # If using proxy, don't retry after a proxy failure
+                if use_proxy:
+                    return f"Error: Proxy attempt failed with exception: {e}"
+                # Only retry on exception if we're using local LLM and not yet at the proxy attempt
+                delay = random.randint(1, 15)
+                time.sleep(delay)
+                continue
+
+        # If all retries fail, return an error message
+        return "Error: Max retries reached. Unable to fetch a genuine JSON response."
+
+    except Exception as e:
         return f"Error fetching the JSON response: {e}"
 
 
