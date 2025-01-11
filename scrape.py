@@ -71,7 +71,14 @@ def analyze_reddit_thread(url):
 
     if USE_LOCAL_LLM:
         api_key = os.getenv("VLLM_API_KEY")
-        result = send_vllm_request(chat_history, api_key, stream=False)
+        json_schema = {
+        "type": "object",
+            "properties": {
+                "comprehensive_summary": {"type": "string"},
+            },
+            "required": ["comprehensive_summary"]
+        }
+        result = send_vllm_request(chat_history, api_key, json_schema, stream=False)
     else:
         try:
             api_key = os.getenv("CLOUD_LLM_API_KEY")

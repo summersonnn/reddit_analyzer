@@ -52,11 +52,6 @@ def fetch_json_response(url, max_retries=4):
                 else:
                     print(response_text)
                     print("Unable to fetch a genuine response...")
-                    # If using proxy (either because USE_LOCAL_LLM is False or it's the final attempt),
-                    # don't retry after a proxy failure
-                    if use_proxy:
-                        return "Error: Proxy attempt failed to fetch genuine response"
-                    # Only continue retrying if we're using local LLM and not yet at the proxy attempt
                     delay = random.randint(1, 15)
                     time.sleep(delay)
                     continue
