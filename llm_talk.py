@@ -2,7 +2,7 @@ import requests
 import json
 import os
 
-SYSTEM_PROMPT = """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
+SYSTEM_PROMPT = """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information. Provide your answer in json format."""
 
 def send_vllm_request(chat_history, api_key, temperature=0.2, stream=False):
     """
@@ -14,12 +14,23 @@ def send_vllm_request(chat_history, api_key, temperature=0.2, stream=False):
         "Authorization": f"Bearer {api_key}",
         "Accept": "text/event-stream" if stream else "application/json"
     }
+
+    json_schema = {
+        "type": "object",
+        "properties": {
+            "comprehensive_summary": {"type": "string"},
+        },
+        "required": ["comprehensive_summary"]
+    }
+
+
     data = {
         "model": model,
         "messages": chat_history,
         "temperature": temperature,
         "stream": stream,
-        "stop_token_ids": [128001, 128009]
+        "stop_token_ids": [128001, 128009],
+        "guided_json": json.dumps(json_schema)
     }
 
     response = requests.post(base_url, headers=headers, json=data, stream=stream)

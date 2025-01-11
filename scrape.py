@@ -3,6 +3,13 @@ from scrape_functions import (
     return_OP,
     return_comments
 )
+from thread_analysis_functions import (
+    get_comment_with_highest_score,
+    get_root_comment_with_highest_score,
+    get_comment_with_most_subcomments,  # this includes root comments as well as sub-comments
+    get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
+)
+    
 
 # from llm_talk import chat_with_vllm
 from llm_api import chat_with_deepinfra
@@ -20,7 +27,22 @@ def analyze_reddit_thread(url):
     
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
-    
+
+    a = get_comment_with_highest_score(comments)
+    b = get_root_comment_with_highest_score(comments)
+    c = get_comment_with_most_subcomments(comments)
+    d = get_comment_with_most_direct_subcomments(comments)
+
+    # # This code block is just for testing on the fly
+    # print(a)
+    # print()  # Prints a blank line
+    # print(b)
+    # print()  # Prints a blank line
+    # print(c)
+    # print()  # Prints a blank line
+    # print(d)
+    # raise ValueError
+
     # Combine all scraped parts into a single variable with appropriate tags
     scraped_data = {
         "title": title,
