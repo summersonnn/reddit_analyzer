@@ -21,6 +21,9 @@ def send_vllm_request(chat_history, api_key, json_schema, temperature=0.2):
     }
 
     if json_schema is not None:
+        # Ensure json_schema is a dictionary
+        if isinstance(json_schema, str):
+            json_schema = json.loads(json_schema)
         data["guided_json"] = json.dumps(json_schema)
 
     response = requests.post(base_url, headers=headers, json=data)

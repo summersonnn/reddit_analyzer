@@ -1,5 +1,6 @@
 import os
 import yaml
+import json
 from llm_api import chat_with_deepinfra
 from llm_local import send_vllm_request
 from thread_analysis_functions import (
@@ -36,9 +37,6 @@ def deep_analysis_of_thread(chat_history, json_schema, comments):
     b = get_root_comment_with_highest_score(comments)
     c = get_comment_with_most_subcomments(comments)
     d = get_comment_with_most_direct_subcomments(comments)
-
-    print(json_schema)
-    print("\n\n")
 
     # This will return comment stats in a list. Each object is a dict.
     analysis_results = analyze_comment_by_LLM(chat_history, json_schema, comments)
@@ -79,12 +77,19 @@ def analyze_comment_by_LLM(chat_history, json_schema, comments):
 
         # Send the request to the LLM
         analysis_result = send_llm_request(current_chat_history, json_schema)
+        
+        # Convert the analysis_result (JSON string) to a Python dictionary
+        try:
+            analysis_result_dict = json.loads(analysis_result)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+            analysis_result_dict = {"error": "Invalid JSON response from LLM"}
 
         # Add the original comment to the analysis result
-        analysis_result['comment'] = comment
+        analysis_result_dict['comment'] = comment
 
         # Append the result to the analysis_results list
-        analysis_results.append(analysis_result)
+        analysis_results.append(analysis_result_dict)
 
         # Recursively analyze replies (sub-comments)
         for reply in comment['replies']:
