@@ -73,7 +73,6 @@ def home_page():
             if url:
                 # Call the analyze_reddit_thread function
                 analysis_result = analyze_reddit_thread(url)
-                print(analysis_result)
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page

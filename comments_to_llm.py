@@ -37,11 +37,16 @@ def deep_analysis_of_thread(chat_history, json_schema, comments):
     c = get_comment_with_most_subcomments(comments)
     d = get_comment_with_most_direct_subcomments(comments)
 
+    print(json_schema)
+    print("\n\n")
+
     # This will return comment stats in a list. Each object is a dict.
     analysis_results = analyze_comment_by_LLM(chat_history, json_schema, comments)
 
     # Convert individual comment stats to meaningful collective stats here
     # TODO
+    print(analysis_results)
+    raise ValueError
 
 
 

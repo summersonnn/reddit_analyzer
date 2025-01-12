@@ -19,19 +19,20 @@ initial_system_message:
     Example Input:
 
     Title: Speculative decoding isn't coming to ollama anytime soon, any alternatives?
-    Original Post: [Details provided about speculative decoding.]
+    Original Post: [Details provided about speculative decoding and user ends it with: "I'd use mlx but my use case isn't purely apple."]
     Comments Section:
 
-        "kobold.cpp has speculative decoding, it's based on llama.cpp like ollama so if ollama works for you kobold should too."
-        "You could try vLLM."
-        "ExllamaV2 is better than llama.cpp."
+        "kobold.cpp has speculative decoding, it's based on llama.cpp like ollama so if ollama works for you kobold should too. Try it with the Llama2-13B model."
+        "You could try vLLM with Qwen2.5-72B."
+        "ExllamaV2 is better than llama.cpp, especially when paired with Llama3.1-8B."
+        "I wish GPT-4o was open source, we could have been doing great things when paired with vLLM"
 
     Expected Output:
 
     {
         "type": "object",
         "properties": {
-            "LLM_engine": {
+            engine": {
                 "type": "string",
                 "enum": ["mlx", "kobold.cpp", "ollama", "llama.cpp", "vLLM", "ExllamaV2"],
                 "description": "Name of the recommended LLM engine"
@@ -39,11 +40,20 @@ initial_system_message:
             "has_speculative_decoding": {
                 "type": "boolean",
                 "description": "Whether the LLM engine supports speculative decoding"
+            },
+            "LLM": {
+                "type": "string",
+                "enum": ["Llama2-13B", "Qwen2.5-72B", "Llama3.1-8B", "GPT-4o"],
+                "description": "Specific model name"
             }
         },
         "required": ["LLM_engine"]
     }
 
+    Lastly, I want to provide you some crucial general information about LLM models and inference engines so that you don't confuse them eachother.
+    Some model names (not all of them and skipping the versions for simplicity for now, you must include versions when extracting from comments): # Llama, Qwen, GPT, Gemini, Deepseek, Mistral, Phi etc.
+    Some inference engines (not all): vLLM, llama.cpp, kobold.cpp, ExllamaV2, MLC-LLM, Ollama, Aphrodite, Hugging Face TGI, SGLang, triton-inference-server
+    LLM and LLM engines are two very different things. LLM Engines are backend for running LLMs. So, DO NOT list model names or families in the enum part of engines.
     VERY IMPORTANT: DO NOT RETURN ANYTHING BUT THE JSON SCHEMA. NO EXPLANATIONS NO COMMENTS. JUST RETURN THE JSON SCHEMA.
 
 final_system_message:
