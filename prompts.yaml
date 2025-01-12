@@ -51,3 +51,8 @@ final_system_message:
   content: |
     Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information.
 
+comment_analysis_system_prompt: |
+  You are an AI trained to analyze comments. 
+  Your task is to analyze the content of the comment and provide insights based on the given JSON schema. 
+  For sub-comments, you will also consider the parent comment for context. 
+  Provide a detailed analysis of the sentiment, key points, and any relevant insights.
