@@ -51,8 +51,9 @@ def deep_analysis_of_thread(chat_history, json_schema, comments):
 # This will return comment stats in a list. Each object is a dict. 
 def analyze_comment_by_LLM(chat_history, json_schema, comments):
     # Load the system prompt from the YAML file
-    with open('../prompts.yaml', 'r') as file:
+    with open('prompts.yaml', 'r') as file:
         prompts = yaml.safe_load(file)
+    print("Starting to analyze comment by comment...")
     
     # Extract the system prompt for comment analysis
     system_prompt = prompts['comment_analysis_system_prompt']
@@ -99,5 +100,6 @@ def analyze_comment_by_LLM(chat_history, json_schema, comments):
     for comment in comments:
         analyze_comment(comment)
 
+    print("Comment by comment analysis is done.")
     return analysis_results
 

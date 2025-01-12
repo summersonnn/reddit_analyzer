@@ -7,7 +7,7 @@ from comments_to_llm import deep_analysis_of_thread, send_llm_request
 import json
 import yaml
 
-with open('../prompts.yaml', 'r') as file:
+with open('prompts.yaml', 'r') as file:
     prompts = yaml.safe_load(file)
 
 initial_system_message = prompts['initial_system_message']
