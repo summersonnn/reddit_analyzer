@@ -17,7 +17,7 @@ def dummy_analyze(url):
     html_response = fetch_html_response_with_selenium(url)
     return html_response
 
-def analyze_reddit_thread(url):
+async def analyze_reddit_thread(url):
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
     
@@ -51,7 +51,7 @@ def analyze_reddit_thread(url):
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    result = send_llm_request(chat_history, None)
+    result = await send_llm_request(chat_history, None)
 
     return result
     

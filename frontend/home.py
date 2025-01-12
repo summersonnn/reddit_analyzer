@@ -54,25 +54,35 @@ st.markdown("""
 def home_page():
     # Header
     st.markdown("""
-        <div class="main-header">
-            <p class="header-text">🔍 URL Analyzer</p>
-            <p class="subheader-text">Analyze any website with our powerful tool</p>
-        </div>
+    <div class="main-header">
+        <p class="header-text">🔍 URL Analyzer</p>
+        <p class="subheader-text">Analyze any website with our powerful tool</p>
+    </div>
     """, unsafe_allow_html=True)
 
     # Main content
     col1, col2 = st.columns([2, 1])
-    
     with col1:
         url = st.text_input("Enter website URL", placeholder="https://example.com")
-    
     with col2:
         st.write("")  # Add some spacing
         st.write("")  # Add some spacing
         if st.button("Analyze"):
             if url:
-                # Call the analyze_reddit_thread function
-                analysis_result = analyze_reddit_thread(url)
+                # Create async function and run it with asyncio
+                async def run_analysis():
+                    return await analyze_reddit_thread(url)
+
+                # Use asyncio to run the async function
+                import asyncio
+                try:
+                    # For Windows compatibility
+                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                except AttributeError:
+                    pass  # Not on Windows
+                
+                analysis_result = asyncio.run(run_analysis())
+                
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result
                 # Navigate to the analysis page
@@ -82,29 +92,26 @@ def home_page():
     # Example section
     st.markdown("### 📊 What you'll get")
     col1, col2, col3 = st.columns(3)
-    
     with col1:
         st.markdown("""
-            🎯 **Traffic Analysis**
-            - Visitor demographics
-            - Traffic sources
-            - User behavior
+        🎯 **Traffic Analysis**
+        - Visitor demographics
+        - Traffic sources
+        - User behavior
         """)
-    
     with col2:
         st.markdown("""
-            📱 **Technical Insights**
-            - Mobile compatibility
-            - Page load speed
-            - SEO score
+        📱 **Technical Insights**
+        - Mobile compatibility
+        - Page load speed
+        - SEO score
         """)
-    
     with col3:
         st.markdown("""
-            🔑 **Key Metrics**
-            - Engagement rate
-            - Bounce rate
-            - Conversion rate
+        🔑 **Key Metrics**
+        - Engagement rate
+        - Bounce rate
+        - Conversion rate
         """)
 
 # Main app logic
