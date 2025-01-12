@@ -38,13 +38,13 @@ def analyze_reddit_thread(url):
     #     "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     # }
     # chat_history.append(user_message)
-    # result = send_llm_request(chat_history, None)
+    # result_json_schema = send_llm_request(chat_history, None)
 
     # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
     # # This does not call send_llm_request directly because there is a preprocessing step first.
-    # final_info = deep_analysis_of_thread(chat_history, result, comments)
+    # final_info = deep_analysis_of_thread(result_json_schema, comments)
 
-    # 3rd Section. Get overall summary.
+    # # 3rd Section. Get overall summary.
     chat_history = [final_system_message]
     user_message = {
         "role": "user", 

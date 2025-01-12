@@ -1,3 +1,4 @@
+aiohttp==3.11.11
 attr==0.3.2
 ConfigParser==7.1.0
 cryptography==42.0.5

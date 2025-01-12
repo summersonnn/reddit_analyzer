@@ -1,18 +1,20 @@
-import requests
+import aiohttp
+import asyncio
 import json
 import os
 
-def send_vllm_request(chat_history, api_key, json_schema, temperature=0.2):
+async def send_vllm_request(chat_history, api_key, json_schema, temperature=0.2):
     """
     Sends a request to the vLLM server with the given context and returns the response.
     """
     base_url = os.getenv("BASE_URL")
     model = os.getenv("MODEL_PATH")
+    
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json"
     }
-
+    
     data = {
         "model": model,
         "messages": chat_history,
@@ -21,14 +23,20 @@ def send_vllm_request(chat_history, api_key, json_schema, temperature=0.2):
     }
 
     if json_schema is not None:
-        # Ensure json_schema is a dictionary
-        if isinstance(json_schema, str):
-            json_schema = json.loads(json_schema)
-        data["guided_json"] = json.dumps(json_schema)
+        # Convert to string if it's a dict
+        if isinstance(json_schema, dict):
+            data["guided_json"] = json.dumps(json_schema)
+        # Use as is if it's already a string
+        elif isinstance(json_schema, str):
+            data["guided_json"] = json_schema
+        else:
+            raise TypeError(f"Unsupported json_schema type: {type(json_schema)}")
 
-    response = requests.post(base_url, headers=headers, json=data)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"] 
-    else:
-        print(f"Request failed with status code: {response.status_code}")
-        return None
+    async with aiohttp.ClientSession() as session:
+        async with session.post(base_url, headers=headers, json=data) as response:
+            if response.status == 200:
+                response_json = await response.json()
+                return response_json["choices"][0]["message"]["content"]
+            else:
+                print(f"Request failed with status code: {response.status}")
+                return None
