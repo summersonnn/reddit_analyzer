@@ -1,67 +1,53 @@
 initial_system_message:
   role: system
   content: |
-    Your task is to create a JSON schema to be used in an API call to another LLM for generating structured outputs. You will be provided with a title, original post, and comments section. Analyze the given input and return a JSON schema that effectively captures all relevant information from the input. Additionally, identify distinct, well-defined values from the comments section for fields where enum types are appropriate. This ensures consistent and coherent outputs across all individual comments.
+    Your task is to create a JSON schema for an API call to another LLM to generate structured outputs. You will be given a title, original post, and comments section. Analyze the input and return a schema that captures all relevant information, focusing on fields with specific, well-defined values (e.g., enums). This ensures consistency and clarity across outputs.
+    Key Tasks:
 
-    Focus on extracting fields with specific, well-defined values rather than open-ended text. The schema should cover all important information that is shared in the comments section to ensure no critical details are missed.
-    Example:
+        Enum Extraction:
+        Identify distinct, standardized values from the comments (e.g., LLM names) and use them in enum fields.
+            Standardize synonyms (e.g., "llama.cpp" and "LLaMA").
+            Treat different versions of the same LLM family as separate values (e.g., "llama.cpp 3.1" vs. "llama.cpp 2.0").
 
-    Input:
+        Schema Design:
+            Create concise, structured fields that cover all important information.
+            Avoid broad, open-ended text where possible.
 
-        Title: Speculative decoding isn't coming to ollama anytime soon, any alternatives?
-        Original Post: According to this recently rejected PR ollama isn't going to bring draft models and speculative decoding in any time soon. I'd very much like to have this feature. I tried it out on mlx and it seems to be more than a token speed up. It seems to take the "voice" of the draft model and integrate it into the larger model. I guess this is a type of steering?
-        Imagine giving something like small stories to a 128k context model!
-        In any event, I'd use mlx but my use case isn't purely apple.
-        Does anyone have suggestions?
-        Comments Section:
-            "kobold.cpp has speculative decoding, it's based on llama.cpp like ollama so if ollama works for you kobold should too "
-            "am i the only one who directly uses llama.cpp "
-            "You could try vLLM."
-            https://docs.vllm.ai/en/v0.6.0/models/spec_decode.html"
-            "Now, I just tell people to install Ollama, and they can use my code without too much fuss.
-                Also, I find ExllamaV2 better than llama.cpp.  You can dive into the code and make your own samplers or mess with the caching system. "
+        Validation:
+        Use enums to enforce consistent outputs across comments. Ensure the schema is flexible yet precise.
 
-    Expected Output (in json format!):
+    Example Input:
+
+    Title: Speculative decoding isn't coming to ollama anytime soon, any alternatives?
+    Original Post: [Details provided about speculative decoding.]
+    Comments Section:
+
+        "kobold.cpp has speculative decoding, it's based on llama.cpp like ollama so if ollama works for you kobold should too."
+        "You could try vLLM."
+        "ExllamaV2 is better than llama.cpp."
+
+    Expected Output:
 
     {
         "type": "object",
         "properties": {
-            "LLM_engine": { 
-                "type": "string", 
+            "LLM_engine": {
+                "type": "string",
                 "enum": ["mlx", "kobold.cpp", "ollama", "llama.cpp", "vLLM", "ExllamaV2"],
                 "description": "Name of the recommended LLM engine"
             },
-            "has_speculative_decoding": { 
-                "type": "boolean", 
-                "description": "Whether or not the LLM engine supports speculative decoding" 
+            "has_speculative_decoding": {
+                "type": "boolean",
+                "description": "Whether the LLM engine supports speculative decoding"
             }
         },
         "required": ["LLM_engine"]
     }
 
-    Key Considerations:
-
-        Enum Extraction:
-            Analyze the comments section to extract unique, standardized values for fields that benefit from predefined options (e.g., LLM names). Map variations or synonyms (e.g., "LLaMA3.1-8B", "llama 3.1 with eight billion parameters") to a single, consistent value. But keep in mind that the different versions of a same LLM family are still different LLMs. Do not standardize them by ignoring version.
-
-        Structure and Precision:
-            Ensure the schema is concise and focuses on extracting structured data rather than broad, open-ended text.
-
-        Adaptability:
-            Design the schema to be flexible enough to capture various perspectives while maintaining clarity and relevance.
-
-        Validation Through Enum:
-            Use the extracted enum values to enforce consistency when processing individual comments, ensuring coherent outputs.
+    VERY IMPORTANT: DO NOT RETURN ANYTHING BUT THE JSON SCHEMA. NO EXPLANATIONS NO COMMENTS. JUST RETURN THE JSON SCHEMA.
 
 final_system_message:
   role: system
   content: |
     Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information.
 
-json_schema_for_comment_analysis:
-  type: object
-  properties:
-    json_schema:
-      type: string
-  required:
-    - json_schema

@@ -1,43 +1,33 @@
 from openai import OpenAI
 import os
 
-def chat_with_deepinfra(chat_history, api_key, json_schema, stream=False):
+def chat_with_deepinfra(chat_history, api_key, json_schema=None):
     """
     Starts a chat session with the DeepInfra API.
+    If `json_schema` is provided, the response format is set to JSON.
     """
     base_url = os.getenv("CLOUD_BASE_URL")
     model = os.getenv("CLOUD_MODEL_NAME")
+    
     # Create an OpenAI client with your DeepInfra token and endpoint
     client = OpenAI(
         api_key=api_key,
         base_url=base_url,
     )
 
-    while True:
-        if stream:
-            print("LLM: ", end="", flush=True)
-            response_text = ""
-            response = client.chat.completions.create(
-                model=model,
-                messages=chat_history,
-                stream=True,
-            )
-            
-            for event in response:
-                if event.choices[0].delta.content:
-                    content = event.choices[0].delta.content
-                    print(content, end="", flush=True)
-                    response_text += content
-            print()  # New line after streaming completes
-            chat_history.append({"role": "assistant", "content": response_text})
-            return response_text
-        else:
-            response = client.chat.completions.create(
-                model=model,
-                messages=chat_history,
-            )
-            llm_response = response.choices[0].message.content
-            print(f"LLM: {llm_response}")  
-            chat_history.append({"role": "assistant", "content": llm_response})
-            return llm_response
+    # Prepare the request parameters
+    request_params = {
+        "model": model,
+        "messages": chat_history,
+    }
+
+    # Add response_format only if json_schema is provided
+    if json_schema is not None:
+        request_params["response_format"] = {"type": "json_object"}
+
+    # Make the API call
+    response = client.chat.completions.create(**request_params)
+    llm_response = response.choices[0].message.content
+    
+    return llm_response
 

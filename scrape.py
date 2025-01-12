@@ -10,7 +10,7 @@ from thread_analysis_functions import (
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
 from llm_api import chat_with_deepinfra
-from llm_talk import send_vllm_request
+from llm_local import send_vllm_request
 import json
 import os
 import yaml
@@ -20,7 +20,6 @@ with open('../prompts.yaml', 'r') as file:
 
 initial_system_message = prompts['initial_system_message']
 final_system_message = prompts['final_system_message']
-json_schema_for_comment_analysis = prompts['json_schema_for_comment_analysis']
 
 def dummy_analyze(url):
     html_response = fetch_html_response_with_selenium(url)
@@ -56,40 +55,41 @@ def analyze_reddit_thread(url):
         "comments": comments
     }
 
-    # 1st SECTION. GET JSON SCHEMA FROM LLM
-    # initial_chat_history = [initial_system_message]
+    # # 1st SECTION. GET JSON SCHEMA FROM LLM
+    # chat_history = [initial_system_message]
     # user_message = {
     #     "role": "user", 
     #     "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     # }
-    # initial_chat_history.append(user_message)
+    # chat_history.append(user_message)
+    # result = send_llm_request(USE_LOCAL_LLM, chat_history, None)
     
 
-    # Initialize chat history with system message
+    # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
+    # TO DO
+
+    # 3rd Section. Get overall summary.
     chat_history = [final_system_message]
-    
-    # Format scraped data as a user message
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
+    result = send_llm_request(USE_LOCAL_LLM, chat_history, None)
 
-    result = send_llm_request(USE_LOCAL_LLM, chat_history, None, stream=False)
     return result
     
 
 def send_llm_request(
     use_local_llm,
     chat_history,
-    json_schema,
-    stream=False
+    json_schema
 ):
     if use_local_llm:
         vllm_api_key = os.getenv("VLLM_API_KEY")
         if not vllm_api_key:
             raise ValueError("VLLM_API_KEY is not set.")
-        result = send_vllm_request(chat_history, vllm_api_key, None, stream=stream)
+        result = send_vllm_request(chat_history, vllm_api_key, json_schema)
     else:
         try:
             cloud_llm_api_key = os.getenv("CLOUD_LLM_API_KEY")
@@ -97,6 +97,6 @@ def send_llm_request(
             cloud_llm_api_key = st.secrets['CLOUD_LLM_API_KEY']
         if not cloud_llm_api_key:
             raise ValueError("Cloud LLM API key is not set.")
-        result = chat_with_deepinfra(chat_history, cloud_llm_api_key, None, stream=stream)
+        result = chat_with_deepinfra(chat_history, cloud_llm_api_key, json_schema)
     return result
 
