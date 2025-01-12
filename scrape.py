@@ -9,13 +9,18 @@ from thread_analysis_functions import (
     get_comment_with_most_subcomments,  # this includes root comments as well as sub-comments
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
-    
-
-# from llm_talk import chat_with_vllm
 from llm_api import chat_with_deepinfra
 from llm_talk import send_vllm_request
 import json
 import os
+import yaml
+
+with open('../prompts.yaml', 'r') as file:
+    prompts = yaml.safe_load(file)
+
+initial_system_message = prompts['initial_system_message']
+final_system_message = prompts['final_system_message']
+json_schema_for_comment_analysis = prompts['json_schema_for_comment_analysis']
 
 def dummy_analyze(url):
     html_response = fetch_html_response_with_selenium(url)
@@ -27,6 +32,7 @@ def analyze_reddit_thread(url):
     
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
+    USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
     a = get_comment_with_highest_score(comments)
     b = get_root_comment_with_highest_score(comments)
@@ -44,46 +50,53 @@ def analyze_reddit_thread(url):
     # raise ValueError
 
     # Combine all scraped parts into a single variable with appropriate tags
-    scraped_data = {
+    all_data = {
         "title": title,
         "original_post": original_post,
         "comments": comments
     }
+
+    # 1st SECTION. GET JSON SCHEMA FROM LLM
+    # initial_chat_history = [initial_system_message]
+    # user_message = {
+    #     "role": "user", 
+    #     "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
+    # }
+    # initial_chat_history.append(user_message)
     
-    # System prompt for the LLM
-    system_message = {
-        "role": "system", 
-        "content": """Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information."""
-    }
-    
+
     # Initialize chat history with system message
-    chat_history = [system_message]
+    chat_history = [final_system_message]
     
     # Format scraped data as a user message
     user_message = {
         "role": "user", 
-        "content": json.dumps(scraped_data, indent=4)  # Convert to JSON string for readability
+        "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
 
+    result = send_llm_request(USE_LOCAL_LLM, chat_history, None, stream=False)
+    return result
+    
 
-    USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
-
-    if USE_LOCAL_LLM:
-        api_key = os.getenv("VLLM_API_KEY")
-        json_schema = {
-        "type": "object",
-            "properties": {
-                "comprehensive_summary": {"type": "string"},
-            },
-            "required": ["comprehensive_summary"]
-        }
-        result = send_vllm_request(chat_history, api_key, json_schema, stream=False)
+def send_llm_request(
+    use_local_llm,
+    chat_history,
+    json_schema,
+    stream=False
+):
+    if use_local_llm:
+        vllm_api_key = os.getenv("VLLM_API_KEY")
+        if not vllm_api_key:
+            raise ValueError("VLLM_API_KEY is not set.")
+        result = send_vllm_request(chat_history, vllm_api_key, None, stream=stream)
     else:
         try:
-            api_key = os.getenv("CLOUD_LLM_API_KEY")
+            cloud_llm_api_key = os.getenv("CLOUD_LLM_API_KEY")
         except:
-            api_key = st.secrets['CLOUD_LLM_API_KEY']
-        result = chat_with_deepinfra(api_key, chat_history, stream=False)
+            cloud_llm_api_key = st.secrets['CLOUD_LLM_API_KEY']
+        if not cloud_llm_api_key:
+            raise ValueError("Cloud LLM API key is not set.")
+        result = chat_with_deepinfra(chat_history, cloud_llm_api_key, None, stream=stream)
     return result
 
