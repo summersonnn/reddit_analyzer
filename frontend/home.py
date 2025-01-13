@@ -69,19 +69,10 @@ def home_page():
         st.write("")  # Add some spacing
         if st.button("Analyze"):
             if url:
-                # Create async function and run it with asyncio
-                async def run_analysis():
-                    return await analyze_reddit_thread(url)
+                def run_analysis():
+                    return analyze_reddit_thread(url)
 
-                # Use asyncio to run the async function
-                import asyncio
-                try:
-                    # For Windows compatibility
-                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                except AttributeError:
-                    pass  # Not on Windows
-                
-                analysis_result = asyncio.run(run_analysis())
+                analysis_result = run_analysis()
                 
                 # Store the result in session state
                 st.session_state.analysis_result = analysis_result

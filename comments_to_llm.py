@@ -12,6 +12,19 @@ from thread_analysis_functions import (
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
 
+try:
+    # Try to load from the current directory
+    with open('prompts.yaml', 'r') as file:
+        prompts = yaml.safe_load(file)
+except FileNotFoundError:
+    try:
+        # If the first attempt fails, try to load from the parent directory
+        with open('../prompts.yaml', 'r') as file:
+            prompts = yaml.safe_load(file)
+    except FileNotFoundError:
+        # If both attempts fail, raise a custom error or handle it as needed
+        raise FileNotFoundError("The prompts.yaml file was not found in the current directory or the parent directory.")
+
 async def send_llm_request(
     chat_history,
     json_schema
@@ -32,6 +45,9 @@ async def send_llm_request(
         result = await chat_with_deepinfra(chat_history, cloud_llm_api_key, json_schema)
     return result
 
+def send_llm_request_sync(chat_history, json_schema):
+    return asyncio.run(send_llm_request(chat_history, json_schema))
+
 # This will create the final result after gathering all informations.
 def deep_analysis_of_thread(json_schema, comments):
     # First, non-LLM statistics
@@ -39,18 +55,12 @@ def deep_analysis_of_thread(json_schema, comments):
     b = get_root_comment_with_highest_score(comments)
     c = get_comment_with_most_subcomments(comments)
     d = get_comment_with_most_direct_subcomments(comments)
-    
-    # Create new event loop if there isn't one
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
+
+    # Run the asynchronous analysis in a synchronous context
     start = time.time()
-    analysis_results = loop.run_until_complete(analyze_comment_by_LLM(json_schema, comments))
+    analysis_results = asyncio.run(analyze_comment_by_LLM(json_schema, comments))
     end = time.time()
-    print(end-start)
+    print(f"Analysis took {end - start} seconds")
 
     # Convert individual comment stats to meaningful collective stats here
     # TODO
@@ -64,10 +74,7 @@ async def analyze_comment_by_LLM(json_schema, comments):
     # Resolve json_schema once at the beginning if it's a coroutine
     if asyncio.iscoroutine(json_schema):
         json_schema = await json_schema
-        
-    # Load the system prompt from the YAML file
-    with open('prompts.yaml', 'r') as file:
-        prompts = yaml.safe_load(file)
+
     print("Starting to analyze comment by comment...")
     
     # Extract the system prompt for comment analysis
