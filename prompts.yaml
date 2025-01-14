@@ -3,7 +3,6 @@ initial_system_message:
   content: |
     Your task is to create a JSON schema for an API call to another LLM to generate structured outputs. You will be given a title, original post, and comments section. Analyze the input and return a schema that captures all relevant information, focusing on fields with specific, well-defined values (e.g., enums). This ensures consistency and clarity across outputs.
     Key Tasks:
-
         Enum Extraction:
         Identify distinct, standardized values from the comments (e.g., LLM names) and use them in enum fields.
             Standardize synonyms (e.g., "llama.cpp" and "LLaMA").
@@ -26,6 +25,7 @@ initial_system_message:
         "You could try vLLM with Qwen2.5-72B."
         "ExllamaV2 is better than llama.cpp, especially when paired with Llama3.1-8B."
         "I wish GPT-4o was open source, we could have been doing great things when paired with vLLM"
+        "I'm not going to recommend anything. This is just an empty comment."
 
     Expected Output:
 
@@ -34,7 +34,7 @@ initial_system_message:
         "properties": {
             engine": {
                 "type": "string",
-                "enum": ["mlx", "kobold.cpp", "ollama", "llama.cpp", "vLLM", "ExllamaV2"],
+                "enum": ["mlx", kobold.cpp", "ollama", "llama.cpp", "vLLM", "ExllamaV2", "None"],
                 "description": "Name of the recommended LLM engine"
             },
             "has_speculative_decoding": {
@@ -43,17 +43,15 @@ initial_system_message:
             },
             "LLM": {
                 "type": "string",
-                "enum": ["Llama2-13B", "Qwen2.5-72B", "Llama3.1-8B", "GPT-4o"],
+                "enum": ["Llama2-13B", "Qwen2.5-72B", "Llama3.1-8B", "GPT-4o", "None"],
                 "description": "Specific model name"
             }
         },
         "required": ["LLM_engine"]
     }
 
-    Lastly, I want to provide you some crucial general information about LLM models and inference engines so that you don't confuse them eachother.
-    Some model names (not all of them and skipping the versions for simplicity for now, you must include versions when extracting from comments): # Llama, Qwen, GPT, Gemini, Deepseek, Mistral, Phi etc.
-    Some inference engines (not all): vLLM, llama.cpp, kobold.cpp, ExllamaV2, MLC-LLM, Ollama, Aphrodite, Hugging Face TGI, SGLang, triton-inference-server
-    LLM and LLM engines are two very different things. LLM Engines are backend for running LLMs. So, DO NOT list model names or families in the enum part of engines.
+    The primary focus should be on the TITLE and the ORIGINAL POST when deciding on the json schema keys as they help you understand what the original poster is requesting. For instance, if the post mentions models, you should include that in the JSON schema you create. Comments can provide additional context, and if a particular pattern or piece of information frequently appears in the comments, you should also include it as a key.
+    Concentrate on numeric and closed-ended values that are precise and leave little room for broad interpretation. (such as LLM_Model,  inference_engine,  quantization_type etc.)
     VERY IMPORTANT: DO NOT RETURN ANYTHING BUT THE JSON SCHEMA. NO EXPLANATIONS NO COMMENTS. JUST RETURN THE JSON SCHEMA.
 
 final_system_message:
@@ -62,7 +60,50 @@ final_system_message:
     Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, and emerging trends within the discussion. Summarize the key points and conclusions based on the most reliable information.
 
 comment_analysis_system_prompt: |
-  You are an AI trained to analyze comments. 
-  Your task is to analyze the content of the comment and provide insights based on the given JSON schema. 
-  For sub-comments, you will also consider the parent comment for context. 
-  Provide a detailed analysis of the sentiment, key points, and any relevant insights.
+    You are an AI trained to analyze comments. 
+    Your task is to analyze the content of the comment and provide insights based on the given JSON schema. 
+    Since Json schema focuses on numeric and closed-ended values that are precise and leave little room for broad interpretation, you should focus on extracting these values from each comment.
+    For sub-comments, you will also consider the parent comment for context. 
+    DO NOT ADD ANY KEY TO THE GIVEN SCHEMA OR REMOVE ANY KEY FROM IT. YOUR TASK IS TO EXTRACT VALUES FROM COMMENTS BASED ON THE GIVEN SCHEMA. DO NOT MAKE UP NEW FIELDS.
+
+    Sub-comments (replies) are given with a parent comment to reflect the context better. When processing these comments, do not focus on the parent comment. Extract values from the child comment. Parent comment is just for
+    understanding the context better.
+
+    Lastly, I want to provide you some crucial general information about LLM models and inference engines so that you don't confuse them eachother.
+    Some model names (not all of them and skipping the versions for simplicity for now, you must include versions when extracting from comments): Llama, Qwen, GPT, Gemini, Deepseek, Mistral, Phi etc.
+    Some inference engines (not all): vLLM, llama.cpp, kobold.cpp, ExllamaV2, MLC-LLM, Ollama, Aphrodite, Hugging Face TGI, SGLang, triton-inference-server
+    LLM and LLM engines are two very different things. LLM Engines are backend for running LLMs. So, DO NOT list model names or families in the enum part of engines.
+
+    # ... existing code ...
+
+# This is for cloud api, to make it abide json schema
+json_schema_system_prompt: |
+    Please provide the response in JSON format that adheres to the following schema: {schema}
+    By that I mean, return a json with keys in schema and values from the comments.
+    Example json schema:
+    {{
+        "type": "object",
+        "properties": {{
+            "A": {{
+                "type": "string", 
+                "enum": ["something", "some other thing", "example thing", "another placeholder"],
+                "description": "Name of the ..."
+            }},
+            "B": {{
+                "type": "string",
+                "enum": ["X", "Y"],
+                "description": "Method used for ..."
+            }},
+            "C": {{
+                "type": "integer",
+                "minimum": 0,
+                "description": "Amount of ..."
+            }}
+        }},
+        "required": ["A", "B"]
+    }}
+    
+    Example result 1:
+    {{"A": null, "B": "X", "C": 5}}
+    Example result 2:
+    {{"A": "some other thing", "B": "Y"}}

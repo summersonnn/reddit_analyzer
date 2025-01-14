@@ -42,7 +42,7 @@ async def send_llm_request(
             cloud_llm_api_key = st.secrets['CLOUD_LLM_API_KEY']
         if not cloud_llm_api_key:
             raise ValueError("Cloud LLM API key is not set.")
-        result = await chat_with_deepinfra(chat_history, cloud_llm_api_key, json_schema)
+        result = await chat_with_deepinfra(chat_history, cloud_llm_api_key, prompts, json_schema)
     return result
 
 def send_llm_request_sync(chat_history, json_schema):
@@ -64,60 +64,69 @@ def deep_analysis_of_thread(json_schema, comments):
 
     # Convert individual comment stats to meaningful collective stats here
     # TODO
-    print(analysis_results)
+    # print(analysis_results)
+    # print_dict_keys_as_lists(analysis_results)
     raise ValueError
 
+async def process_comment(system_prompt, json_schema, comment):
+    chat_history = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": comment['body']}
+    ]
+    
+    try:
+        analysis_result = await send_llm_request(chat_history, json_schema)
+        analysis_result_dict = json.loads(analysis_result)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON for comment: {comment['body'][:50]}... Error: {e}")
+        return None
+    except Exception as e:
+        print(f"Error processing comment: {comment['body'][:50]}... Error: {e}")
+        return None
 
+    analysis_result_dict['comment'] = comment['body']
+    return analysis_result_dict
 
-# This will return comment stats in a list. Each object is a dict. 
 async def analyze_comment_by_LLM(json_schema, comments):
-    # Resolve json_schema once at the beginning if it's a coroutine
     if asyncio.iscoroutine(json_schema):
         json_schema = await json_schema
 
     print("Starting to analyze comment by comment...")
-    
-    # Extract the system prompt for comment analysis
     system_prompt = prompts['comment_analysis_system_prompt']
-
-    # List to store the analysis results
-    analysis_results = []
-
-    async def process_comment(chat_history, schema, comment):
-        # Send the request to the LLM
-        analysis_result = await send_llm_request(chat_history, schema)
+    
+    async def analyze_comment_tree(comment):
+        results = []
         
-        # Convert the analysis_result (JSON string) to a Python dictionary
-        try:
-            analysis_result_dict = json.loads(analysis_result)
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-            analysis_result_dict = {"error": "Invalid JSON response from LLM"}
-
-        # Add the original comment to the analysis result
-        analysis_result_dict['comment'] = comment
-        analysis_results.append(analysis_result_dict)
-
-    async def analyze_comment(comment, parent_comment=None):
-        current_chat_history = [{"role": "system", "content": system_prompt}]
-
-        # If this is a sub-comment, include the parent comment in the chat history
-        if parent_comment:
-            parent_context = f"- Parent comment: {parent_comment['body']}\n- Child Comment to analyze: {comment['body']}"
-            current_chat_history.append({"role": "user", "content": parent_context})
-        else:
-            current_chat_history.append({"role": "user", "content": comment['body']})
-
-        # Process the current comment
-        await process_comment(current_chat_history, json_schema, comment)
-
-        # Process all replies in parallel
+        # Process current comment
+        result = await process_comment(system_prompt, json_schema, comment)
+        if result:
+            results.append(result)
+        
+        # Process replies
         if comment['replies']:
-            await asyncio.gather(*[analyze_comment(reply, parent_comment=comment) for reply in comment['replies']])
+            reply_results = await asyncio.gather(
+                *[analyze_comment_tree(reply) for reply in comment['replies']]
+            )
+            results.extend([item for sublist in reply_results for item in sublist])
+            
+        return results
 
-    # Analyze all root comments in parallel
-    await asyncio.gather(*[analyze_comment(comment) for comment in comments])
-
+    # Process all root comments in parallel
+    all_results = await asyncio.gather(
+        *[analyze_comment_tree(comment) for comment in comments]
+    )
+    
+    # Flatten results
+    analysis_results = [item for sublist in all_results for item in sublist]
+    
     print("Comment by comment analysis is done.")
     return analysis_results
 
+# This is just for testing purposes. To make sure every dict in the list have same keys. If not, spot the faulty dict.
+def print_dict_keys_as_lists(list_of_dicts):
+    # Create a list of lists containing the keys of each dictionary
+    list_of_keys = [list(dictionary.keys()) for dictionary in list_of_dicts]
+    
+    # Print each inner list on a separate line
+    for keys in list_of_keys:
+        print(keys)
