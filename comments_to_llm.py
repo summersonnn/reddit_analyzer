@@ -3,6 +3,8 @@ import yaml
 import json
 import asyncio
 import time
+import jsonschema
+from jsonschema import ValidationError
 from llm_api import chat_with_deepinfra
 from llm_local import send_vllm_request
 from thread_analysis_functions import (
@@ -45,8 +47,32 @@ async def send_llm_request(
         result = await chat_with_deepinfra(chat_history, cloud_llm_api_key, prompts, json_schema)
     return result
 
-def send_llm_request_sync(chat_history, json_schema):
-    return asyncio.run(send_llm_request(chat_history, json_schema))
+# Function to send LLM request and validate schema with retries
+def send_llm_request_sync(chat_history, json_schema, max_retries=3):
+    retries = 0
+    while retries < max_retries:
+        # Generate the JSON schema using the LLM
+        result_json_schema_string = asyncio.run(send_llm_request(chat_history, json_schema))
+
+        try:
+            # Convert the schema from string to dictionary
+            result_json_schema = json.loads(result_json_schema_string)
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse schema (invalid JSON): {e}")
+            retries += 1
+            print(f"Retry {retries} of {max_retries}...")
+            continue  # Skip validation and retry
+        
+        # Validate the generated schema
+        if validate_json_schema(result_json_schema):
+            return result_json_schema  # Return the valid schema
+        
+        # If validation fails, increment retry count
+        retries += 1
+        print(f"Retry {retries} of {max_retries}...")
+    
+    # If max retries reached, raise an exception or return None
+    raise ValueError("Failed to generate a valid JSON schema after maximum retries.")
 
 # This will create the final result after gathering all informations.
 def deep_analysis_of_thread(json_schema, comments):
@@ -130,3 +156,14 @@ def print_dict_keys_as_lists(list_of_dicts):
     # Print each inner list on a separate line
     for keys in list_of_keys:
         print(keys)
+
+# Function to validate JSON schema after step 1
+def validate_json_schema(json_schema):
+    try:
+        # Validate the schema itself
+        jsonschema.Draft7Validator.check_schema(json_schema)
+        print("JSON schema is valid.")
+        return True
+    except ValidationError as e:
+        print(f"JSON schema is invalid: {e}")
+        return False
