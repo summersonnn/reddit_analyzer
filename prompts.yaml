@@ -61,49 +61,12 @@ final_system_message:
 
 comment_analysis_system_prompt: |
     You are an AI trained to analyze comments. 
-    Your task is to analyze the content of the comment and provide insights based on the given JSON schema. 
+    Your task is to analyze the content of the comment and provide statistics based on the given JSON schema in the form of dictionary. 
     Since Json schema focuses on numeric and closed-ended values that are precise and leave little room for broad interpretation, you should focus on extracting these values from each comment.
     For sub-comments, you will also consider the parent comment for context. 
     DO NOT ADD ANY KEY TO THE GIVEN SCHEMA OR REMOVE ANY KEY FROM IT. YOUR TASK IS TO EXTRACT VALUES FROM COMMENTS BASED ON THE GIVEN SCHEMA. DO NOT MAKE UP NEW FIELDS.
-
-    Sub-comments (replies) are given with a parent comment to reflect the context better. When processing these comments, do not focus on the parent comment. Extract values from the child comment. Parent comment is just for
-    understanding the context better.
 
     Lastly, I want to provide you some crucial general information about LLM models and inference engines so that you don't confuse them eachother.
     Some model names (not all of them and skipping the versions for simplicity for now, you must include versions when extracting from comments): Llama, Qwen, GPT, Gemini, Deepseek, Mistral, Phi etc.
     Some inference engines (not all): vLLM, llama.cpp, kobold.cpp, ExllamaV2, MLC-LLM, Ollama, Aphrodite, Hugging Face TGI, SGLang, triton-inference-server
     LLM and LLM engines are two very different things. LLM Engines are backend for running LLMs. So, DO NOT list model names or families in the enum part of engines.
-
-    # ... existing code ...
-
-# This is for cloud api, to make it abide json schema
-json_schema_system_prompt: |
-    Please provide the response in JSON format that adheres to the following schema: {schema}
-    By that I mean, return a json with keys in schema and values from the comments.
-    Example json schema:
-    {{
-        "type": "object",
-        "properties": {{
-            "A": {{
-                "type": "string", 
-                "enum": ["something", "some other thing", "example thing", "another placeholder"],
-                "description": "Name of the ..."
-            }},
-            "B": {{
-                "type": "string",
-                "enum": ["X", "Y"],
-                "description": "Method used for ..."
-            }},
-            "C": {{
-                "type": "integer",
-                "minimum": 0,
-                "description": "Amount of ..."
-            }}
-        }},
-        "required": ["A", "B"]
-    }}
-    
-    Example result 1:
-    {{"A": null, "B": "X", "C": 5}}
-    Example result 2:
-    {{"A": "some other thing", "B": "Y"}}

@@ -6,14 +6,14 @@ import time
 import jsonschema
 from jsonschema import ValidationError
 from typing import List, Dict, Any
-from llm_api import chat_with_deepinfra
-from llm_local import send_vllm_request
+from llm_common import chat_completion
 from thread_analysis_functions import (
     get_comment_with_highest_score,
     get_root_comment_with_highest_score,
     get_comment_with_most_subcomments,  # this includes root comments as well as sub-comments
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
+from typing import Optional, Dict, List, Union
 
 try:
     # Try to load from the current directory
@@ -29,23 +29,44 @@ except FileNotFoundError:
         raise FileNotFoundError("The prompts.yaml file was not found in the current directory or the parent directory.")
 
 async def send_llm_request(
-    chat_history,
-    json_schema
-):
+    chat_history: List[Dict[str, str]],
+    json_schema: Optional[Dict] = None,
+) -> str:
+    """
+    Sends a request to the appropriate LLM service based on environment configuration.
+    
+    Args:
+        chat_history: List of message dictionaries with 'role' and 'content'
+        json_schema: Optional JSON schema for structured output
+        prompts: Optional dictionary containing prompt templates
+    
+    Returns:
+        str: The model's response
+    """
     use_local_llm = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
+    
+    # Get the appropriate API key
     if use_local_llm:
-        vllm_api_key = os.getenv("VLLM_API_KEY")
-        if not vllm_api_key:
+        api_key = os.getenv("VLLM_API_KEY")
+        if not api_key:
             raise ValueError("VLLM_API_KEY is not set.")
-        result = await send_vllm_request(chat_history, vllm_api_key, json_schema)
     else:
         try:
-            cloud_llm_api_key = os.getenv("CLOUD_LLM_API_KEY")
+            api_key = os.getenv("CLOUD_LLM_API_KEY")
         except:
-            cloud_llm_api_key = st.secrets['CLOUD_LLM_API_KEY']
-        if not cloud_llm_api_key:
+            import streamlit as st
+            api_key = st.secrets['CLOUD_LLM_API_KEY']
+        
+        if not api_key:
             raise ValueError("Cloud LLM API key is not set.")
-        result = await chat_with_deepinfra(chat_history, cloud_llm_api_key, prompts, json_schema)
+
+    # Use the unified chat completion function
+    result = await chat_completion(
+        chat_history=chat_history,
+        api_key=api_key,
+        json_schema=json_schema
+    )
+    
     return result
 
 # Function to send LLM request and validate schema with retries
