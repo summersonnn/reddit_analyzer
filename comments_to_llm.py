@@ -38,35 +38,15 @@ async def send_llm_request(
     Args:
         chat_history: List of message dictionaries with 'role' and 'content'
         json_schema: Optional JSON schema for structured output
-        prompts: Optional dictionary containing prompt templates
     
     Returns:
         str: The model's response
     """
-    use_local_llm = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
-    
-    # Get the appropriate API key
-    if use_local_llm:
-        api_key = os.getenv("VLLM_API_KEY")
-        if not api_key:
-            raise ValueError("VLLM_API_KEY is not set.")
-    else:
-        try:
-            api_key = os.getenv("CLOUD_LLM_API_KEY")
-        except:
-            import streamlit as st
-            api_key = st.secrets['CLOUD_LLM_API_KEY']
-        
-        if not api_key:
-            raise ValueError("Cloud LLM API key is not set.")
-
     # Use the unified chat completion function
     result = await chat_completion(
         chat_history=chat_history,
-        api_key=api_key,
         json_schema=json_schema
     )
-    
     return result
 
 # Function to send LLM request and validate schema with (step 1) retries (also used in step 3, summarizing)

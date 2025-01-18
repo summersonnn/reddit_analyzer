@@ -3,9 +3,9 @@ import os
 import json
 from typing import Optional, Dict, List, Union
 
+# I want to merge two separate processes (local LLM and cloud LLM) into a unified approach. However, the way these systems handle structured output currently differs.
 async def chat_completion(
     chat_history: List[Dict[str, str]], 
-    api_key: str,
     json_schema: Optional[Dict] = None,
     temperature: float = 0.2
 ) -> str:
@@ -18,7 +18,7 @@ async def chat_completion(
     
     # Get complete base URL with path
     base_url = os.getenv("BASE_URL" if is_local else "CLOUD_BASE_URL").rstrip('/')
-    
+    api_key = os.getenv("VLLM_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
     model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME")
 
     # Create AsyncOpenAI client
