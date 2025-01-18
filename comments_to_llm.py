@@ -7,6 +7,7 @@ import jsonschema
 from jsonschema import ValidationError
 from typing import List, Dict, Any
 from llm_common import chat_completion
+from collections import defaultdict
 from thread_analysis_functions import (
     get_comment_with_highest_score,
     get_root_comment_with_highest_score,
@@ -74,9 +75,10 @@ def send_llm_request_sync(chat_history, max_retries=3, create_json_schema=False)
         # Validate the generated schema
         if validate_json_schema(result_json_schema):
             result_json_schema = add_none_to_enum(result_json_schema)
-            # print("-----------Here is the json schema:")
-            # prettified_json = json.dumps(result_json_schema, indent=4)
-            # print(prettified_json)
+            result_json_schema = remove_array_type_elements(result_json_schema) # will be removed in the future
+            print("-----------Here is the json schema:")
+            prettified_json = json.dumps(result_json_schema, indent=4)
+            print(prettified_json)
             return result_json_schema  # Return the valid schema
         
         # If validation fails, increment retry count
@@ -89,19 +91,15 @@ def send_llm_request_sync(chat_history, max_retries=3, create_json_schema=False)
     raise ValueError("Failed to generate a valid JSON schema after maximum retries.")
 
 # This will create the final result after gathering all informations.
-def deep_analysis_of_thread(json_schema, comments):
+def deep_analysis_of_thread(json_schema, all_data):
     # First, non-LLM statistics
-    a = get_comment_with_highest_score(comments)
-    b = get_root_comment_with_highest_score(comments)
-    c = get_comment_with_most_subcomments(comments)
-    d = get_comment_with_most_direct_subcomments(comments)
+    a = get_comment_with_highest_score(all_data['comments'])
+    b = get_root_comment_with_highest_score(all_data['comments'])
+    c = get_comment_with_most_subcomments(all_data['comments'])
+    d = get_comment_with_most_direct_subcomments(all_data['comments'])
 
     # Run the asynchronous analysis in a synchronous context
-    start = time.time()
-    analysis_results = asyncio.run(analyze_comment_by_LLM(json_schema, comments))
-    end = time.time()
-    print(f"Analysis took {end - start} seconds")
-
+    analysis_results = asyncio.run(analyze_comment_by_LLM(json_schema, all_data))
 
     # Print value counts before standardization
     print_dict_value_counts(analysis_results, "Before Standardization")
@@ -116,10 +114,14 @@ def deep_analysis_of_thread(json_schema, comments):
     # print("--------")
     # print(analysis_results[1])
 
-    # Convert individual comment stats to meaningful collective stats here
-    # TODO
-    # print(analysis_results)
-    # print_dict_keys_as_lists(analysis_results)
+    # Scores are not taken into account
+    raw_final_stats = aggregate_analysis_results(analysis_results)
+    scored_final_stats = aggregate_analysis_results_with_scores(analysis_results)
+    
+    print(raw_final_stats)
+    print()
+    print(scored_final_stats)
+
     raise ValueError
 
 async def process_comment(system_prompt, json_schema, comment, max_tries=3):
@@ -138,7 +140,9 @@ async def process_comment(system_prompt, json_schema, comment, max_tries=3):
             analysis_result_dict = json.loads(analysis_result)
             
             # Add the comment body to the result
-            analysis_result_dict['comment'] = comment['body']
+            analysis_result_dict['comment'] = comment
+            print(analysis_result_dict)
+            print()
             
             return analysis_result_dict
         
@@ -155,44 +159,54 @@ async def process_comment(system_prompt, json_schema, comment, max_tries=3):
     print(f"Max retries reached for comment: {comment['body'][:50]}...")
     return None
 
-async def analyze_comment_by_LLM(json_schema, comments):
+async def analyze_comment_by_LLM(json_schema, all_data):
+    comments = all_data['comments']
+    op = all_data['original_post']
+
     if asyncio.iscoroutine(json_schema):
         json_schema = await json_schema
 
     print("Starting to analyze comment by comment...")
-    system_prompt = prompts['comment_analysis_system_prompt']
-    
+    system_prompt = prompts['comment_analysis_system_prompt']  # Assuming you have this defined
+
     async def analyze_comment_tree(comment):
-        results = [] # one-dimensional list containing dicts (comment results)
-        
+        results = [] 
+
         # Process current comment
-        result = await process_comment(system_prompt, json_schema, comment) # result is a single dict
+        result = await process_comment(system_prompt, json_schema, comment)
         if result:
             results.append(result)
-        
+
         # Process replies
         if comment['replies']:
-            # reply_results is a list of lists (a two-dimensional array).
             reply_results = await asyncio.gather(
                 *[analyze_comment_tree(reply) for reply in comment['replies']]
             )
-            # flattened to one-dimensional list of dictionaries.
             results.extend([item for sublist in reply_results for item in sublist])
-            
+
         return results
 
+    async def analyze_op(op_text):
+      """Analyzes the original post (OP) using the same logic as comments."""
+      result = await process_comment(system_prompt, json_schema, op)  # Treat OP as a comment with no replies for consistency
+      return result
+
+    # Process OP
+    op_result = await analyze_op(op)
+    if op_result:
+        analysis_results = [op_result]
+    else:
+        analysis_results = []
+
     # Process all root comments in parallel
-    # all_results is a list of lists.
-    # Each inner list corresponds to the results of one parent comment and its replies. [[result_parent1, result_child1, result_child2],[result_parent1],...]
     all_results = await asyncio.gather(
         *[analyze_comment_tree(comment) for comment in comments]
     )
-    
-    # flattened version of all_results
-    # Every single dict in it is a result of a comment, whether it's a parent or a child.
-    analysis_results = [item for sublist in all_results for item in sublist]
-    
-    print("Comment by comment analysis is done.")
+
+    # Flatten all results
+    analysis_results.extend([item for sublist in all_results for item in sublist])
+
+    print("Comment by comment and OP analysis is done.")
     return analysis_results
 
 # This is just for testing purposes. To make sure every dict in the list have same keys. If not, spot the faulty dict.
@@ -288,5 +302,119 @@ def add_none_to_enum(json_data):
                 new_json_data[key]["properties"] = add_none_to_enum(value["properties"])
             else:
                 new_json_data[key] = add_none_to_enum(value)  # Recurse for other nested dicts
+
+    return new_json_data
+
+
+
+def aggregate_analysis_results(analysis_results):
+    """
+    Aggregates the analysis results, calculating the frequency of each value for each key,
+    while ensuring that values from the same author are counted only once.
+    This version assumes no value can be a list.
+
+    Args:
+        analysis_results: A list of dictionaries, where each dictionary represents the
+                          analysis of a single comment. Each dictionary is expected
+                          to have a "comment" key, which is another dictionary containing
+                          at least an "author" key.
+
+    Returns:
+        A dictionary where keys are the keys from the analysis results, and values are
+        dictionaries mapping unique values to their frequencies, considering author uniqueness.
+    """
+
+    aggregated_stats = defaultdict(lambda: defaultdict(int))
+    author_values = defaultdict(lambda: defaultdict(set))  # Track values seen per author per key
+
+    for result in analysis_results:
+        author = result['comment']['author']
+        for key, value in result.items():
+            if key == 'comment':  # Skip the 'comment' key itself
+                continue
+
+            # No need to check for list type anymore
+            if value not in author_values[key][author]:
+                aggregated_stats[key][value] += 1
+                author_values[key][author].add(value)
+
+    return aggregated_stats
+
+
+def aggregate_analysis_results_with_scores(analysis_results):
+    """
+    Aggregates the analysis results, calculating a weighted frequency for each value,
+    while considering comment scores and ensuring that only the highest-scoring value
+    from the same author is counted for each key.
+
+    The weighted frequency is calculated as:
+        frequency * (comment_score / 2)
+
+    Args:
+        analysis_results: A list of dictionaries, where each dictionary represents the
+                          analysis of a single comment. Each dictionary is expected
+                          to have a "comment" key, which is another dictionary containing
+                          at least "author" and "score" keys.
+
+    Returns:
+        A dictionary where keys are the keys from the analysis results, and values are
+        dictionaries mapping unique values to their weighted frequencies, considering
+        author uniqueness and comment scores.
+    """
+
+    aggregated_stats = defaultdict(lambda: defaultdict(float))  # Use float for weighted frequency
+    author_values = defaultdict(lambda: defaultdict(dict))  # Track value and score per author per key
+
+    for result in analysis_results:
+        author = result['comment']['author']
+        score = result['comment']['score']
+
+        for key, value in result.items():
+            if key == 'comment':
+                continue
+
+            # Check if value exists for author and key
+            if value in author_values[key][author]:
+                # Compare scores and update if current score is higher
+                if score > author_values[key][author][value]:
+                    # Decrement the old score's contribution (remove the previous count)
+                    aggregated_stats[key][value] -= author_values[key][author][value]
+                    # Add the new score's contribution
+                    aggregated_stats[key][value] += score
+                    # Update the tracked score for this author, key, and value
+                    author_values[key][author][value] = score
+            else:
+                # New value for this author and key
+                aggregated_stats[key][value] += score / 2
+                author_values[key][author][value] = score
+
+    return aggregated_stats
+
+# Just for now. We will allow arrays in the json in the future.
+def remove_array_type_elements(json_data):
+    """
+    Removes elements with a type of "array" from a JSON schema.
+
+    Args:
+        json_data: The JSON schema as a dictionary.
+
+    Returns:
+        A new dictionary with array-type elements removed.
+    """
+
+    if not isinstance(json_data, dict):
+        return json_data
+
+    new_json_data = {}
+    for key, value in json_data.items():
+        if isinstance(value, dict):
+            if "type" in value and value["type"] == "array":
+                continue  # Skip elements with type "array"
+            else:
+                new_json_data[key] = remove_array_type_elements(value)
+        elif isinstance(value, list):
+             new_json_data[key] = [remove_array_type_elements(item) for item in value]
+        else:
+            new_json_data[key] = value
 
     return new_json_data

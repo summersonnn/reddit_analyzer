@@ -38,7 +38,7 @@ def analyze_reddit_thread(url):
     # result_json_schema = send_llm_request_sync(chat_history, create_json_schema=True)
 
     # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
-    # final_info = deep_analysis_of_thread(result_json_schema, comments)
+    # final_info = deep_analysis_of_thread(result_json_schema, all_data)
 
     # # 3rd Section. Get overall summary. No parallelism is needed.
     chat_history = [final_system_message]

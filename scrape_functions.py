@@ -74,28 +74,36 @@ def fetch_json_response(url, max_retries=4):
 
 def return_OP(json_data):
     """
-    Extracts the title and content (selftext) of the original post from the JSON response.
+    Extracts the title and content of the original post from the JSON response.
+    Formats the content similar to a comment structure.
 
     Args:
         json_data (dict): The JSON response from the API.
 
     Returns:
-        tuple: A tuple containing (title, content).
+        tuple: A tuple containing (title, content_dict).
+               content_dict is a dictionary representing the original post's content in a format similar to comments.
     """
     try:
-        # Navigate through the JSON structure
-        first_element = json_data[0]  # First element in the JSON list
-        first_child = first_element['data']['children'][0]  # First child in the 'children' list
-        data = first_child['data']  # The 'data' dictionary
+        # Navigate through the JSON structure (same as before)
+        first_element = json_data[0]
+        first_child = first_element['data']['children'][0]
+        data = first_child['data']
 
-        # Extract title and content
-        title = data.get('title', '')  # Get the title, default to empty string if not found
-        content = data.get('selftext', '')  # Get the content, default to empty string if not found
+        # Extract title and content (same as before)
+        title = data.get('title', '')
+        content = data.get('selftext', '')
 
-        return (title, content)
+        # Create the content dictionary (similar to comment structure)
+        content_dict = {
+            'author': data.get('author', ''),  # Author of the post
+            'score': data.get('score', 0),    # Score of the post
+            'body': content,                      # Content of the post
+        }
+
+        return (title, content_dict)
 
     except (KeyError, IndexError, TypeError) as e:
-        # Handle cases where the JSON structure is not as expected
         return (None, None)
 
 def return_comments(json_data):
