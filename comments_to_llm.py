@@ -69,8 +69,13 @@ async def send_llm_request(
     
     return result
 
-# Function to send LLM request and validate schema with retries
+# Function to send LLM request and validate schema with (step 1) retries (also used in step 3, summarizing)
 def send_llm_request_sync(chat_history, json_schema, max_retries=3):
+    # If json_schema is None, just call the LLM request and return the raw result
+    if json_schema is None:
+        return asyncio.run(send_llm_request(chat_history, json_schema))
+
+    # Otherwise, proceed with the retry mechanism and schema validation
     retries = 0
     while retries < max_retries:
         # Generate the JSON schema using the LLM
