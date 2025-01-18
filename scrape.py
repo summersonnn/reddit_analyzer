@@ -35,7 +35,7 @@ def analyze_reddit_thread(url):
     #     "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     # }
     # chat_history.append(user_message)
-    # result_json_schema = send_llm_request_sync(chat_history, None)
+    # result_json_schema = send_llm_request_sync(chat_history, create_json_schema=True)
 
     # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
     # final_info = deep_analysis_of_thread(result_json_schema, comments)
@@ -47,7 +47,7 @@ def analyze_reddit_thread(url):
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    result = send_llm_request_sync(chat_history, None)
+    result = send_llm_request_sync(chat_history)
 
     return result
     

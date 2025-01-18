@@ -50,16 +50,16 @@ async def send_llm_request(
     return result
 
 # Function to send LLM request and validate schema with (step 1) retries (also used in step 3, summarizing)
-def send_llm_request_sync(chat_history, json_schema, max_retries=3):
-    # If json_schema is None, just call the LLM request and return the raw result
-    if json_schema is None:
-        return asyncio.run(send_llm_request(chat_history, json_schema))
+def send_llm_request_sync(chat_history, max_retries=3, create_json_schema=False):
+    # If not for json_schema creation, simply redirect it to send_llm_request
+    if not create_json_schema:
+        return asyncio.run(send_llm_request(chat_history))
 
     # Otherwise, proceed with the retry mechanism and schema validation
     retries = 0
     while retries < max_retries:
         # Generate the JSON schema using the LLM
-        result_json_schema_string = asyncio.run(send_llm_request(chat_history, json_schema))
+        result_json_schema_string = asyncio.run(send_llm_request(chat_history))
         result_json_schema_string = result_json_schema_string.replace("```json", "").replace("```", "").strip()
 
         try:
@@ -73,6 +73,10 @@ def send_llm_request_sync(chat_history, json_schema, max_retries=3):
         
         # Validate the generated schema
         if validate_json_schema(result_json_schema):
+            result_json_schema = add_none_to_enum(result_json_schema)
+            # print("-----------Here is the json schema:")
+            # prettified_json = json.dumps(result_json_schema, indent=4)
+            # print(prettified_json)
             return result_json_schema  # Return the valid schema
         
         # If validation fails, increment retry count
@@ -107,6 +111,10 @@ def deep_analysis_of_thread(json_schema, comments):
 
     # Print value counts after standardization
     print_dict_value_counts(analysis_results, "After Standardization")
+
+    # print(analysis_results[0])
+    # print("--------")
+    # print(analysis_results[1])
 
     # Convert individual comment stats to meaningful collective stats here
     # TODO
@@ -155,28 +163,33 @@ async def analyze_comment_by_LLM(json_schema, comments):
     system_prompt = prompts['comment_analysis_system_prompt']
     
     async def analyze_comment_tree(comment):
-        results = []
+        results = [] # one-dimensional list containing dicts (comment results)
         
         # Process current comment
-        result = await process_comment(system_prompt, json_schema, comment)
+        result = await process_comment(system_prompt, json_schema, comment) # result is a single dict
         if result:
             results.append(result)
         
         # Process replies
         if comment['replies']:
+            # reply_results is a list of lists (a two-dimensional array).
             reply_results = await asyncio.gather(
                 *[analyze_comment_tree(reply) for reply in comment['replies']]
             )
+            # flattened to one-dimensional list of dictionaries.
             results.extend([item for sublist in reply_results for item in sublist])
             
         return results
 
     # Process all root comments in parallel
+    # all_results is a list of lists.
+    # Each inner list corresponds to the results of one parent comment and its replies. [[result_parent1, result_child1, result_child2],[result_parent1],...]
     all_results = await asyncio.gather(
         *[analyze_comment_tree(comment) for comment in comments]
     )
     
-    # Flatten results
+    # flattened version of all_results
+    # Every single dict in it is a result of a comment, whether it's a parent or a child.
     analysis_results = [item for sublist in all_results for item in sublist]
     
     print("Comment by comment analysis is done.")
@@ -248,3 +261,32 @@ def print_dict_value_counts(analysis_results: List[Dict[str, Any]], stage: str =
 
     value_counts = [len(d.values()) for d in analysis_results]
     print(f"{stage}: Number of values in each dictionary: {value_counts}")
+
+def add_none_to_enum(json_data):
+    """
+    Adds "None" to the enum property of keys in a JSON object if it's not already present.
+    Correctly handles nested "properties" objects.
+
+    Args:
+        json_data: A dictionary representing the JSON data.
+
+    Returns:
+        A new dictionary with "None" added to the enum lists where appropriate.
+    """
+
+    if not isinstance(json_data, dict):
+        return json_data
+
+    new_json_data = json_data.copy()
+
+    for key, value in new_json_data.items():
+        if isinstance(value, dict):
+            if "enum" in value:
+                if "None" not in value["enum"]:
+                    value["enum"].append("None")
+            elif "properties" in value:  # Handle nested properties
+                new_json_data[key]["properties"] = add_none_to_enum(value["properties"])
+            else:
+                new_json_data[key] = add_none_to_enum(value)  # Recurse for other nested dicts
+
+    return new_json_data
