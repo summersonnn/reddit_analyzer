@@ -8,7 +8,7 @@ from analysis import analysis_page, dummy_analysis_page
 # Add parent directory to path to allow importing scrape
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scrape import analyze_reddit_thread, dummy_analyze
+from analyze_main import analyze_reddit_thread
 
 load_dotenv()
 

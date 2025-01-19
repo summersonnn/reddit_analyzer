@@ -3,21 +3,16 @@ from scrape_functions import (
     return_OP,
     return_comments
 )
-from comments_to_llm import deep_analysis_of_thread, send_llm_request, prompts, send_llm_request_sync
+from analyze_comments import deep_analysis_of_thread, prompts, send_llm_request_sync
+from config import prompts
 import json
-import yaml
-
-initial_system_message = prompts['initial_system_message']
-final_system_message = prompts['final_system_message']
-
-def dummy_analyze(url):
-    html_response = fetch_html_response_with_selenium(url)
-    return html_response
 
 def analyze_reddit_thread(url):
+    initial_system_message = prompts['initial_system_message']
+    final_system_message = prompts['final_system_message']
+
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
-    
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
 

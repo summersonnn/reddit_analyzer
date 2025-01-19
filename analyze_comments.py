@@ -1,10 +1,6 @@
 import os
-import yaml
 import json
 import asyncio
-import time
-import jsonschema
-from jsonschema import ValidationError
 from typing import List, Dict, Any
 from llm_common import chat_completion
 from collections import defaultdict
@@ -14,53 +10,20 @@ from thread_analysis_functions import (
     get_comment_with_most_subcomments,  # this includes root comments as well as sub-comments
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
-from typing import Optional, Dict, List, Union
-
-try:
-    # Try to load from the current directory
-    with open('prompts.yaml', 'r') as file:
-        prompts = yaml.safe_load(file)
-except FileNotFoundError:
-    try:
-        # If the first attempt fails, try to load from the parent directory
-        with open('../prompts.yaml', 'r') as file:
-            prompts = yaml.safe_load(file)
-    except FileNotFoundError:
-        # If both attempts fail, raise a custom error or handle it as needed
-        raise FileNotFoundError("The prompts.yaml file was not found in the current directory or the parent directory.")
-
-async def send_llm_request(
-    chat_history: List[Dict[str, str]],
-    json_schema: Optional[Dict] = None,
-) -> str:
-    """
-    Sends a request to the appropriate LLM service based on environment configuration.
-    
-    Args:
-        chat_history: List of message dictionaries with 'role' and 'content'
-        json_schema: Optional JSON schema for structured output
-    
-    Returns:
-        str: The model's response
-    """
-    # Use the unified chat completion function
-    result = await chat_completion(
-        chat_history=chat_history,
-        json_schema=json_schema
-    )
-    return result
+from helpers import print_dict_keys_as_lists, validate_json_schema, print_dict_value_counts, add_none_to_enum, remove_array_type_elements
+from config import prompts
 
 # Function to send LLM request and validate schema with (step 1) retries (also used in step 3, summarizing)
 def send_llm_request_sync(chat_history, max_retries=3, create_json_schema=False):
-    # If not for json_schema creation, simply redirect it to send_llm_request
+    # If not for json_schema creation, simply redirect it to chat_completion
     if not create_json_schema:
-        return asyncio.run(send_llm_request(chat_history))
+        return asyncio.run(chat_completion(chat_history))
 
     # Otherwise, proceed with the retry mechanism and schema validation
     retries = 0
     while retries < max_retries:
         # Generate the JSON schema using the LLM
-        result_json_schema_string = asyncio.run(send_llm_request(chat_history))
+        result_json_schema_string = asyncio.run(chat_completion(chat_history))
         result_json_schema_string = result_json_schema_string.replace("```json", "").replace("```", "").strip()
 
         try:
@@ -90,7 +53,7 @@ def send_llm_request_sync(chat_history, max_retries=3, create_json_schema=False)
     # If max retries reached, raise an exception or return None
     raise ValueError("Failed to generate a valid JSON schema after maximum retries.")
 
-# This will create the final result after gathering all informations.
+# This will create the final result after gathering all informations from comments and op
 def deep_analysis_of_thread(json_schema, all_data):
     # First, non-LLM statistics
     a = get_comment_with_highest_score(all_data['comments'])
@@ -109,10 +72,6 @@ def deep_analysis_of_thread(json_schema, all_data):
 
     # Print value counts after standardization
     print_dict_value_counts(analysis_results, "After Standardization")
-
-    # print(analysis_results[0])
-    # print("--------")
-    # print(analysis_results[1])
 
     # Scores are not taken into account
     raw_final_stats = aggregate_analysis_results(analysis_results)
@@ -134,7 +93,7 @@ async def process_comment(system_prompt, json_schema, comment, max_tries=3):
     while retries < max_tries:
         try:
             # Send the request to the LLM
-            analysis_result = await send_llm_request(chat_history, json_schema)
+            analysis_result = await chat_completion(chat_history, json_schema)
             
             # Try to parse the result as JSON
             analysis_result_dict = json.loads(analysis_result)
@@ -209,26 +168,6 @@ async def analyze_comment_by_LLM(json_schema, all_data):
     print("Comment by comment and OP analysis is done.")
     return analysis_results
 
-# This is just for testing purposes. To make sure every dict in the list have same keys. If not, spot the faulty dict.
-def print_dict_keys_as_lists(list_of_dicts):
-    # Create a list of lists containing the keys of each dictionary
-    list_of_keys = [list(dictionary.keys()) for dictionary in list_of_dicts]
-    
-    # Print each inner list on a separate line
-    for keys in list_of_keys:
-        print(keys)
-
-# Function to validate JSON schema after step 1
-def validate_json_schema(json_schema):
-    try:
-        # Validate the schema itself
-        jsonschema.Draft7Validator.check_schema(json_schema)
-        print("JSON schema is valid.")
-        return True
-    except ValidationError as e:
-        print(f"JSON schema is invalid: {e}")
-        return False
-
 def standardize_analysis_results(analysis_results: List[Dict[str, Any]], threshold: float = 0.5):
     """
     Standardizes analysis results by removing keys that are not present in a sufficient proportion of dictionaries.
@@ -259,53 +198,6 @@ def standardize_analysis_results(analysis_results: List[Dict[str, Any]], thresho
             result.pop(key, None)
 
     return analysis_results
-
-# just for functionality testing (used inside deep_analysis_of_thread)
-def print_dict_value_counts(analysis_results: List[Dict[str, Any]], stage: str = "Before Standardization"):
-    """
-    Prints the number of values in each dictionary of a list and a descriptive message.
-
-    Args:
-        analysis_results: A list of dictionaries.
-        stage: A string describing the stage (e.g., "Before Standardization", "After Standardization").
-    """
-    if not analysis_results:
-        print(f"{stage}: The analysis_results list is empty.")
-        return
-
-    value_counts = [len(d.values()) for d in analysis_results]
-    print(f"{stage}: Number of values in each dictionary: {value_counts}")
-
-def add_none_to_enum(json_data):
-    """
-    Adds "None" to the enum property of keys in a JSON object if it's not already present.
-    Correctly handles nested "properties" objects.
-
-    Args:
-        json_data: A dictionary representing the JSON data.
-
-    Returns:
-        A new dictionary with "None" added to the enum lists where appropriate.
-    """
-
-    if not isinstance(json_data, dict):
-        return json_data
-
-    new_json_data = json_data.copy()
-
-    for key, value in new_json_data.items():
-        if isinstance(value, dict):
-            if "enum" in value:
-                if "None" not in value["enum"]:
-                    value["enum"].append("None")
-            elif "properties" in value:  # Handle nested properties
-                new_json_data[key]["properties"] = add_none_to_enum(value["properties"])
-            else:
-                new_json_data[key] = add_none_to_enum(value)  # Recurse for other nested dicts
-
-    return new_json_data
-
-
 
 def aggregate_analysis_results(analysis_results):
     """
@@ -389,32 +281,3 @@ def aggregate_analysis_results_with_scores(analysis_results):
                 author_values[key][author][value] = score
 
     return aggregated_stats
-
-# Just for now. We will allow arrays in the json in the future.
-def remove_array_type_elements(json_data):
-    """
-    Removes elements with a type of "array" from a JSON schema.
-
-    Args:
-        json_data: The JSON schema as a dictionary.
-
-    Returns:
-        A new dictionary with array-type elements removed.
-    """
-
-    if not isinstance(json_data, dict):
-        return json_data
-
-    new_json_data = {}
-    for key, value in json_data.items():
-        if isinstance(value, dict):
-            if "type" in value and value["type"] == "array":
-                continue  # Skip elements with type "array"
-            else:
-                new_json_data[key] = remove_array_type_elements(value)
-        elif isinstance(value, list):
-             new_json_data[key] = [remove_array_type_elements(item) for item in value]
-        else:
-            new_json_data[key] = value
-
-    return new_json_data
