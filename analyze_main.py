@@ -5,6 +5,7 @@ from scrape_functions import (
 )
 from analyze_comments import deep_analysis_of_thread, prompts, send_llm_request_sync
 from config import prompts
+from helpers import json_schema_to_label_sets
 import json
 
 def analyze_reddit_thread(url):
@@ -31,6 +32,12 @@ def analyze_reddit_thread(url):
     # }
     # chat_history.append(user_message)
     # result_json_schema = send_llm_request_sync(chat_history, create_json_schema=True)
+
+    # label_sets = json_schema_to_label_sets(result_json_schema)
+
+    # print(result_json_schema)
+    # print()
+    # print(label_sets)
 
     # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
     # final_info = deep_analysis_of_thread(result_json_schema, all_data)

@@ -3,6 +3,36 @@ import jsonschema
 from jsonschema import ValidationError
 from typing import List, Dict, Any
 
+def json_schema_to_label_sets(schema):
+    """
+    Converts a JSON Schema to a dictionary of label sets for zero-shot classification.
+    Handles boolean properties (without enums) to create the label set ["True", "False", "None"].
+
+    Args:
+        schema (dict): The JSON Schema.
+
+    Returns:
+        dict: A dictionary where keys are property names (categories) and
+              values are lists of labels for that category.
+    """
+    label_sets = {}
+
+    if not isinstance(schema, dict) or schema.get("type") != "object" or "properties" not in schema:
+        return label_sets
+
+    for property_name, property_details in schema["properties"].items():
+        if property_details.get("type") == "boolean":
+            # Special handling for booleans (no enums)
+            label_sets[property_name] = ["True", "False", "None"]
+        elif "enum" in property_details:
+            # Other types with enums
+            label_sets[property_name] = property_details["enum"]
+        else:
+            print(f"Warning: Property '{property_name}' has no 'type' or 'enum'. Using ['None'] as label.")
+            label_sets[property_name] = ["None"]
+
+    return label_sets
+
 # This is just for testing purposes. To make sure every dict in the list have same keys. If not, spot the faulty dict.
 def print_dict_keys_as_lists(list_of_dicts):
     # Create a list of lists containing the keys of each dictionary
