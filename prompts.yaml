@@ -52,6 +52,7 @@ initial_system_message:
 
     Focus on numeric or closed-ended values that are specific and minimize ambiguity, such as LLM_Model, inference_engine, or quantization_type. Avoid selecting keys that would require lengthy text values. Instead, aim to use predefined values through enums or concise entries like integers or short strings.
     If a key is derived from just one or a few comments, you can omit including it in the "required" section of the JSON, as many comments may not provide a value for this field.
+    All properties except boolean types must include enum values in it! Even the numeric ones!
     VERY IMPORTANT: DO NOT RETURN ANYTHING BUT THE JSON SCHEMA. NO EXPLANATIONS NO COMMENTS. JUST RETURN THE JSON SCHEMA.
 
 final_system_message:

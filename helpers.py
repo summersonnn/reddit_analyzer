@@ -126,3 +126,5 @@ def remove_array_type_elements(json_data):
             new_json_data[key] = value
 
     return new_json_data
+
+

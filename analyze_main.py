@@ -21,7 +21,7 @@ def analyze_reddit_thread(url):
     all_data = {
         "title": title,
         "original_post": original_post,
-        "comments": comments
+        "comments": comments  # list of dicts
     }
 
     # # 1st SECTION. GET JSON SCHEMA FROM LLM
@@ -35,12 +35,8 @@ def analyze_reddit_thread(url):
 
     # label_sets = json_schema_to_label_sets(result_json_schema)
 
-    # print(result_json_schema)
-    # print()
-    # print(label_sets)
-
-    # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
-    # final_info = deep_analysis_of_thread(result_json_schema, all_data)
+    # # # 2nd Section. Analyze each comment one by one with LLM and returned json_schema
+    # final_info = deep_analysis_of_thread(label_sets, all_data)
 
     # # 3rd Section. Get overall summary. No parallelism is needed.
     chat_history = [final_system_message]
