@@ -1,5 +1,8 @@
 import asyncio
 import aiohttp
+import os
+
+
 async def analyze_comments_by_bart(label_sets, all_data):
     """
     Analyzes comments and the original post using a local BART model server.
@@ -84,7 +87,7 @@ def add_full_comment_info_to_results(results, all_data):
 def post_process_results(results):
     """
     Post-processes the analysis results, selecting the highest-confidence label for each comment
-    (>= 75% confidence) and adding it to the comment data.
+    (>= 60% confidence) and adding it to the comment data.
 
     Args:
         results: The dictionary of analysis results, including full comment information and
@@ -115,7 +118,7 @@ def post_process_results(results):
                     highest_confidence = confidence
                     top_label = label
 
-            if highest_confidence >= 75:
+            if highest_confidence >= 60:
                 final_label = top_label
             else:
                 final_label = "None"
@@ -146,7 +149,11 @@ async def analyze_comments_batch(session, comment_texts, label_sets):
         A dictionary where keys are categories and values are lists of analysis results,
         in the same order as the input comment_texts.
     """
-    url = "http://172.17.0.1:5000/classify"  # The correct endpoint for your server
+
+    # Edit here when you have bart cloud endpoint
+    is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+    base_url = os.getenv("BART_LOCAL_ENDPOINT_URL" if is_local else "BART_LOCAL_ENDPOINT_URL").rstrip('/')
+    url = base_url  # The correct endpoint for your server
     payload = {
         "texts": comment_texts,
         "label_sets": label_sets,
