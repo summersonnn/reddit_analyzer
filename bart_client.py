@@ -26,11 +26,45 @@ async def analyze_comments_by_bart(label_sets, all_data):
     async with aiohttp.ClientSession() as session:
         results = await analyze_comments_batch(session, all_texts, label_sets)
 
+    if results:  # Check if the results dictionary is not empty
+        for category, category_results in results.items():
+            print(f"Category: {category}")
+            for i, result in enumerate(category_results):
+                print(f"  Comment {i+1} analysis:")
+                if isinstance(result, dict):  # Handle cases where result might be a dictionary (e.g., with scores for each label)
+                    for label, score in result.items():
+                        print(f"    {label}: {score}")
+                elif isinstance(result, list):  # Handle cases where result might be a list of labels
+                    print(f"    Labels: {', '.join(result)}")
+                else:
+                    print(f"    Result: {result}") # Handle other cases, if any
+            print("-" * 20)  # Separator between categories
+    else:
+        print("No results to display.")
+    print("----------------")
+
     # Add original post info and full comment information to the results
     results_with_full_comments = add_full_comment_info_to_results(results, all_data)
 
     # Post-process results (treating original post as a comment)
     processed_results = post_process_results(results_with_full_comments)
+
+    if processed_results:
+        for category, comments in processed_results.items():
+            print(f"Category: {category}")
+            for comment in comments:
+                print(f"  Comment: {comment['text'][:50]}...")  # Print first 50 chars of comment
+                print(f"    Assigned Label: {comment['label']}")
+                print(f"    Original Post Author: {comment['original_post_author']}")
+                print(f"    Original Post Score: {comment['original_post_score']}")
+                # Print other relevant fields from the comment dictionary as needed
+                # For example:
+                # if 'field_name' in comment:
+                #     print(f"    Field Name: {comment['field_name']}")
+            print("-" * 20)
+    else:
+        print("No processed results to display.")
+    print("-----------------")
 
     return processed_results
 
@@ -154,6 +188,7 @@ async def analyze_comments_batch(session, comment_texts, label_sets):
     is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
     base_url = os.getenv("BART_LOCAL_ENDPOINT_URL" if is_local else "BART_LOCAL_ENDPOINT_URL").rstrip('/')
     url = base_url  # The correct endpoint for your server
+
     payload = {
         "texts": comment_texts,
         "label_sets": label_sets,

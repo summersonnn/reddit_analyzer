@@ -1,8 +1,8 @@
-from openai import AsyncOpenAI
 import os
 from typing import List, Dict
+from openai import OpenAI  # Import the synchronous OpenAI client
 
-async def chat_completion(
+def chat_completion(
     chat_history: List[Dict[str, str]],
     temperature: float = 0.2
 ) -> str:
@@ -17,8 +17,8 @@ async def chat_completion(
     api_key = os.getenv("VLLM_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
     model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME")
 
-    # Create AsyncOpenAI client
-    client = AsyncOpenAI(
+    # Create OpenAI client
+    client = OpenAI(
         api_key=api_key,
         base_url=base_url,
     )
@@ -31,7 +31,7 @@ async def chat_completion(
     }
 
     try:
-        response = await client.chat.completions.create(**request_params)
+        response = client.chat.completions.create(**request_params)
         return response.choices[0].message.content
     except Exception as e:
         print(f"Full base URL: {base_url}")

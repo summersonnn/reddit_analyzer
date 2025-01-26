@@ -99,6 +99,8 @@ def return_OP(json_data):
             'author': data.get('author', ''),  # Author of the post
             'score': data.get('score', 0),    # Score of the post
             'body': content,                      # Content of the post
+            'type': data.get('link_flair_text', '')	,
+            'image_link': data.get('url', ''),  # only if it's image post (check the extension)
         }
 
         return (title, content_dict)
