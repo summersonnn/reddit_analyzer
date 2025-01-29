@@ -54,28 +54,33 @@ st.markdown("""
 def home_page():
     # Header
     st.markdown("""
-    <div class="main-header">
-        <p class="header-text">🔍 URL Analyzer</p>
-        <p class="subheader-text">Analyze any website with our powerful tool</p>
-    </div>
+        <div class="main-header">
+            <p class="header-text">🔍 URL Analyzer</p>
+            <p class="subheader-text">Analyze any website with our powerful tool</p>
+        </div>
     """, unsafe_allow_html=True)
 
     # Main content
     col1, col2 = st.columns([2, 1])
+    
     with col1:
         url = st.text_input("Enter website URL", placeholder="https://example.com")
+    
     with col2:
-        st.write("")  # Add some spacing
-        st.write("")  # Add some spacing
+        st.write("") # Add some spacing
+        st.write("") # Add some spacing
         if st.button("Analyze"):
             if url:
-                def run_analysis():
-                    return analyze_reddit_thread(url)
-
-                analysis_result = run_analysis()
+                # Store the URL in session state
+                st.session_state.url = url
                 
-                # Store the result in session state
+                # Run analysis
+                analysis_result_old, analysis_result = analyze_reddit_thread(url)
+                
+                # Store the results in session state
+                st.session_state.analysis_result_old = analysis_result_old
                 st.session_state.analysis_result = analysis_result
+                
                 # Navigate to the analysis page
                 st.session_state.page = "analysis"
                 st.rerun()
@@ -113,7 +118,7 @@ def main():
     if st.session_state.page == "home":
         home_page()
     else:
-        analysis_page(st.session_state.analysis_result)
+        analysis_page(st.session_state.analysis_result_old, st.session_state.analysis_result)
 
 if __name__ == "__main__":
     main()

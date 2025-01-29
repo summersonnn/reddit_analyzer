@@ -1,6 +1,8 @@
-from llm_interact import chat_completion
+from llm_interact import chat_completion, async_chat_completion, process_branches_async
 from config import prompts
+from typing import List, Dict
 import json
+import asyncio
 from scrape_functions import (
     fetch_json_response,
     return_OP,
@@ -14,7 +16,9 @@ from thread_analysis_functions import (
 )
 
 def analyze_reddit_thread(url):
-    summarize_system_message = prompts['summarize_system_message']
+    summarize_system_message = prompts['summarize_raw_content']
+    summary_of_all = prompts['summarize_the_summaries']
+    branch_summary = prompts['branch_summary']
 
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
@@ -28,22 +32,35 @@ def analyze_reddit_thread(url):
         "comments": comments  # list of dicts
     }
 
-    # Get overall summary. 
+    # Get overall summary. We don't use it anymore.
     chat_history = [summarize_system_message]
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    result = chat_completion(chat_history)
+    result_old = chat_completion(chat_history)
     # a,b,c,d = deep_analysis_of_thread(all_data)
 
-    # # Identify and extract linear branches within the tree structure. 
-    # linear_branches = get_linear_branches(all_data)
-    # print_branches_authors(linear_branches)
-    # raise ValueError
+    # Identify and extract linear branches within the tree structure. 
+    linear_branches = get_linear_branches(all_data) # List[List[dict]] (A list of lists of dictionaries) Each branch is a list of comment/OP nodes
 
-    return result
+    # Run async processing within sync context
+    summaries = asyncio.run(process_branches_async(linear_branches, branch_summary))
+
+    # for summary in summaries:
+    #     print(summary)
+    #     print("\n")
+
+    # Get summary of summaries.
+    chat_history = [summary_of_all]
+    user_message = {
+        "role": "user", 
+        "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
+    }
+    chat_history.append(user_message)
+    result = chat_completion(chat_history)
+    return result_old, result
 
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics
@@ -84,6 +101,16 @@ def get_linear_branches(all_data):
 
     # Start traversal with the OP as the root
     traverse([op], op)
+
+    # # Each branch contains dictionaries with this structure:
+    # {
+    # 'author': str,       # Author name (e.g., 'OP_USER' or 'User1')
+    # 'body': str,         # Combined title + OP content (for root) or comment text
+    # 'depth': int         # -1 for OP, 0+ for comments
+    # # For comments, also contains:
+    # 'score': int,        # Upvote score (optional)
+    # 'replies': list      # Child comments (only in non-leaf nodes)
+    # }
 
     return branches
 

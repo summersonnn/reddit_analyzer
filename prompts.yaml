@@ -1,5 +1,23 @@
-summarize_system_message:
+summarize_raw_content:
   role: system
   content: |
     Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, key takeaways and any other thing that you think valuable from the discussion. Summarize the key points and conclusions based on the most reliable information.
 
+
+summarize_the_summaries:
+  role: system
+  content: |
+    You will receive multiple summaries, each representing a linear branch of a Reddit thread, starting from the original post and ending at the last comment in that branch. Your task is to analyze these summaries to produce a comprehensive overview of the entire discussion. Identify key insights, contradictions, biases, and any other notable patterns or themes that emerge.
+
+branch_summary:
+  role: system
+  content: |
+    You are a skilled discourse analyst. Analyze this Reddit conversation branch by extracting:  
+    - **Core Takeaway**: The main insight or consensus.  
+    - **Key Progression**: How the discussion evolved.  
+    - **Argument Map**: Main positions and supporting reasoning.  
+    - **Emotional Arc**: Tone shifts and their causes.  
+    - **Resolution State**: Conclusion or unresolved points.  
+
+    Provide your analysis as a concise paragraph summarizing these elements in a natural flow."""
+    
