@@ -28,19 +28,23 @@ def analyze_reddit_thread(url):
         "comments": comments  # list of dicts
     }
 
-    # Get overall summary. No parallelism is needed.
+    # Get overall summary. 
     chat_history = [summarize_system_message]
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    a,b,c,d = deep_analysis_of_thread(all_data)
     result = chat_completion(chat_history)
+    # a,b,c,d = deep_analysis_of_thread(all_data)
+
+    # # Identify and extract linear branches within the tree structure. 
+    # linear_branches = get_linear_branches(all_data)
+    # print_branches_authors(linear_branches)
+    # raise ValueError
 
     return result
 
-# This will create the final result after gathering all informations from comments and op
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics
     a = get_comment_with_highest_score(all_data['comments'])
@@ -49,5 +53,47 @@ def deep_analysis_of_thread(all_data):
     d = get_comment_with_most_direct_subcomments(all_data['comments'])
 
     return (a,b,c,d)
+
+def get_linear_branches(all_data):
+    # Create the original post (OP) node
+    op = {
+        'author': all_data['original_post']['author'],
+        'body': f"{all_data['title']}\n\n{all_data['original_post']}",
+        'depth': -1  # Indicates it's the root
+    }
+
+    branches = []
+
+    def traverse(current_branch, current_node):
+        # Determine children based on current node
+        if current_node == op:
+            # Children of OP are comments with depth 0
+            children = [comment for comment in all_data['comments'] if comment['depth'] == 0]
+        else:
+            # Children of other nodes are their replies
+            children = current_node.get('replies', [])
+
+        if not children:
+            # Add the current branch if there are no more children
+            branches.append(current_branch)
+        else:
+            for child in children:
+                new_branch = current_branch.copy()
+                new_branch.append(child)
+                traverse(new_branch, child)
+
+    # Start traversal with the OP as the root
+    traverse([op], op)
+
+    return branches
+
+# For verifying the linear structure
+def print_branches_authors(branches):
+    """Prints all conversation branches in an author-path format"""
+    for i, branch in enumerate(branches, 1):
+        authors = [node['author'] for node in branch]
+        print(f"Branch {i}: {' -> '.join(authors)}")
+
+
 
 
