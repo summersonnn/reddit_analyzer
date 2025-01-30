@@ -19,6 +19,7 @@ def analyze_reddit_thread(url):
     summarize_system_message = prompts['summarize_raw_content']
     summary_of_all = prompts['summarize_the_summaries']
     branch_summary = prompts['branch_summary']
+    summary_for_5yo = prompts['summarize_like_im_5']
 
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
@@ -32,7 +33,7 @@ def analyze_reddit_thread(url):
         "comments": comments  # list of dicts
     }
 
-    # Get overall summary. We don't use it anymore.
+    # 1 ---- Get overall summary. We don't use it anymore.
     chat_history = [summarize_system_message]
     user_message = {
         "role": "user", 
@@ -40,7 +41,6 @@ def analyze_reddit_thread(url):
     }
     chat_history.append(user_message)
     result_old = chat_completion(chat_history)
-    # a,b,c,d = deep_analysis_of_thread(all_data)
 
     # Identify and extract linear branches within the tree structure. 
     linear_branches = get_linear_branches(all_data) # List[List[dict]] (A list of lists of dictionaries) Each branch is a list of comment/OP nodes
@@ -52,15 +52,29 @@ def analyze_reddit_thread(url):
     #     print(summary)
     #     print("\n")
 
-    # Get summary of summaries.
+    # 2 ---- Get summary of summaries.
     chat_history = [summary_of_all]
+    user_message = {
+        "role": "user", 
+        "content": json.dumps(summaries, indent=4)  # Convert to JSON string for readability
+    }
+    chat_history.append(user_message)
+    result = chat_completion(chat_history)
+
+    # 3 ---- Get summary for 5-yo
+    chat_history = [summary_for_5yo]
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    result = chat_completion(chat_history)
-    return result_old, result
+    result_for_5yo = chat_completion(chat_history)
+
+    # 4 --- some notable comments
+    a,b,c,d = deep_analysis_of_thread(all_data)
+
+
+    return result_old, result, result_for_5yo, [a,b,c,d]
 
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics

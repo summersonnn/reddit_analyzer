@@ -1,8 +1,12 @@
 summarize_raw_content:
   role: system
   content: |
-    Analyze the entire thread, including the title, original post, comments, and subcomments. Prioritize information from posts with the highest scores, as they indicate strong user agreement. Identify contradictions, biases, key takeaways and any other thing that you think valuable from the discussion. Summarize the key points and conclusions based on the most reliable information.
+    You will receive the content of a Reddit post along with the title, original post and the comment tree. Your task is to analyze everything to produce a comprehensive overview of the entire discussion. Pay extra attention to the most liked messages because they are usually the most agreed upon and most informative. Identify key insights, contradictions, biases, and any other notable patterns or themes that emerge.
 
+summarize_like_im_5:
+  role: system
+  content:
+    You will receive multiple summaries, each representing a linear branch of a Reddit thread, starting from the original post and ending at the last comment in that branch. Find the most important ideas, any disagreements, and anything really interesting. Then, explain it in a super simple way that even a 5-year-old can understand!
 
 summarize_the_summaries:
   role: system
