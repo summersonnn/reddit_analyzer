@@ -75,11 +75,10 @@ def home_page():
                 st.session_state.url = url
                 
                 # Run analysis
-                analysis_result_old, analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url)
+                analysis_result_old, sum_for_5yo, notable_comments = analyze_reddit_thread(url)
                 
                 # Store the results in session state
                 st.session_state.analysis_result_old = analysis_result_old
-                st.session_state.analysis_result = analysis_result
                 st.session_state.sum_for_5yo = sum_for_5yo
                 st.session_state.notable_comments = notable_comments
                 
@@ -120,7 +119,7 @@ def main():
     if st.session_state.page == "home":
         home_page()
     else:
-        analysis_page(st.session_state.analysis_result_old, st.session_state.analysis_result, st.session_state.sum_for_5yo, st.session_state.notable_comments)
+        analysis_page(st.session_state.analysis_result_old, st.session_state.sum_for_5yo, st.session_state.notable_comments)
 
 if __name__ == "__main__":
     main()

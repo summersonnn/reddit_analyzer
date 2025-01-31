@@ -98,6 +98,7 @@ def return_OP(json_data):
         content_dict = {
             'author': data.get('author', ''),  # Author of the post
             'score': data.get('score', 0),    # Score of the post
+            'ef_score': data.get('score', 0)/2, 
             'body': content,                      # Content of the post
             'type': data.get('link_flair_text', '')	,
             'image_link': data.get('url', ''),  # only if it's image post (check the extension)
@@ -168,6 +169,7 @@ def return_comments(json_data):
         comment_dict = {
             'author': comment.get('author', ''),  # Author of the comment
             'score': comment.get('score', 0),     # Score of the comment
+            'ef_score': comment.get('score', 0) * (depth+1),
             'body': body,                         # Formatted content of the comment
             'depth': depth,                       # Depth of the comment in the hierarchy
             'replies': []                         # Initialize an empty list for replies

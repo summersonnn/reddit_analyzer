@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
-def analysis_page(analysis_result_old, analysis_result, sum_for_5yo, notable_comments):
+def analysis_page(analysis_result_old, sum_for_5yo, notable_comments):
     # Header
     st.markdown("""
         <div class="main-header">
@@ -11,16 +11,12 @@ def analysis_page(analysis_result_old, analysis_result, sum_for_5yo, notable_com
         </div>
     """.format(st.session_state.get('url', 'Unknown URL')), unsafe_allow_html=True)
 
-    # Display the previous analysis result
-    st.markdown("### 📝 Previous Analysis Summary") 
+    # Display the  analysis result
+    st.markdown("### 📝 Analysis Summary") 
     st.markdown(f"<p style='font-size: 16px;'>{analysis_result_old}</p>", unsafe_allow_html=True)
 
     # Horizontal line separator
     st.markdown("---")
-
-    # Display the new analysis result
-    st.markdown("### 📝 Latest Analysis Summary")
-    st.markdown(f"<p style='font-size: 16px;'>{analysis_result}</p>", unsafe_allow_html=True)
 
     # Display summary for 5-years old
     st.markdown("### 📝 Summary for 5-years old")

@@ -16,9 +16,9 @@ from thread_analysis_functions import (
 )
 
 def analyze_reddit_thread(url):
-    summarize_system_message = prompts['summarize_raw_content']
-    summary_of_all = prompts['summarize_the_summaries']
-    branch_summary = prompts['branch_summary']
+    summary_raw_content = prompts['summarize_raw_content']
+    # summary_of_all = prompts['summarize_the_summaries']
+    # branch_summary = prompts['branch_summary']
     summary_for_5yo = prompts['summarize_like_im_5']
 
     # Fetch the HTML response using Selenium
@@ -33,8 +33,11 @@ def analyze_reddit_thread(url):
         "comments": comments  # list of dicts
     }
 
-    # 1 ---- Get overall summary. We don't use it anymore.
-    chat_history = [summarize_system_message]
+    # print(all_data)
+    # print("\n\n")
+
+    # 1 ---- Get effective-score weighted overall summary. 
+    chat_history = [summary_raw_content]
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
@@ -42,26 +45,28 @@ def analyze_reddit_thread(url):
     chat_history.append(user_message)
     result_old = chat_completion(chat_history)
 
-    # Identify and extract linear branches within the tree structure. 
-    linear_branches = get_linear_branches(all_data) # List[List[dict]] (A list of lists of dictionaries) Each branch is a list of comment/OP nodes
+    # # Identify and extract linear branches within the tree structure. 
+    # linear_branches = get_linear_branches(all_data) # List[List[dict]] (A list of lists of dictionaries) Each branch is a list of comment/OP nodes
 
-    # Run async processing within sync context
-    summaries = asyncio.run(process_branches_async(linear_branches, branch_summary))
+    # print_branches_authors(linear_branches)
+
+    # # Run async processing within sync context
+    # summaries = asyncio.run(process_branches_async(linear_branches, branch_summary))
 
     # for summary in summaries:
     #     print(summary)
     #     print("\n")
 
-    # 2 ---- Get summary of summaries.
-    chat_history = [summary_of_all]
-    user_message = {
-        "role": "user", 
-        "content": json.dumps(summaries, indent=4)  # Convert to JSON string for readability
-    }
-    chat_history.append(user_message)
-    result = chat_completion(chat_history)
+    # # 2 ---- Get summary of summaries.
+    # chat_history = [summary_of_all]
+    # user_message = {
+    #     "role": "user", 
+    #     "content": json.dumps(summaries, indent=4)  # Convert to JSON string for readability
+    # }
+    # chat_history.append(user_message)
+    # result = chat_completion(chat_history)
 
-    # 3 ---- Get summary for 5-yo
+    # 3 ---- Get summary for junior_cs
     chat_history = [summary_for_5yo]
     user_message = {
         "role": "user", 
@@ -74,7 +79,7 @@ def analyze_reddit_thread(url):
     a,b,c,d = deep_analysis_of_thread(all_data)
 
 
-    return result_old, result, result_for_5yo, [a,b,c,d]
+    return result_old, result_for_5yo, [a,b,c,d]
 
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics
@@ -89,7 +94,8 @@ def get_linear_branches(all_data):
     # Create the original post (OP) node
     op = {
         'author': all_data['original_post']['author'],
-        'body': f"{all_data['title']}\n\n{all_data['original_post']}",
+        'body': f"{all_data['title']}\n\n{all_data['original_post']['body']}",
+        'score': all_data['original_post']['score'],
         'depth': -1  # Indicates it's the root
     }
 
@@ -109,9 +115,17 @@ def get_linear_branches(all_data):
             branches.append(current_branch)
         else:
             for child in children:
+                # Create a copy of the child to avoid modifying the original data
+                new_child = child.copy()
+                # Check if depth is 0 or higher (i.e., a comment, not OP)
+                if new_child['depth'] >= 0:
+                    # Calculate effective_score
+                    new_child['effective_score'] = new_child['score'] * (new_child['depth'] + 1)
+                # Create a new branch by appending the modified child
                 new_branch = current_branch.copy()
-                new_branch.append(child)
-                traverse(new_branch, child)
+                new_branch.append(new_child)
+                # Recurse with the new_child as the current node
+                traverse(new_branch, new_child)
 
     # Start traversal with the OP as the root
     traverse([op], op)
@@ -121,8 +135,8 @@ def get_linear_branches(all_data):
     # 'author': str,       # Author name (e.g., 'OP_USER' or 'User1')
     # 'body': str,         # Combined title + OP content (for root) or comment text
     # 'depth': int         # -1 for OP, 0+ for comments
-    # # For comments, also contains:
     # 'score': int,        # Upvote score (optional)
+    # # For comments, also contains:
     # 'replies': list      # Child comments (only in non-leaf nodes)
     # }
 
@@ -130,10 +144,17 @@ def get_linear_branches(all_data):
 
 # For verifying the linear structure
 def print_branches_authors(branches):
-    """Prints all conversation branches in an author-path format"""
+    """Prints all conversation branches in an author-path format followed by effective scores."""
     for i, branch in enumerate(branches, 1):
         authors = [node['author'] for node in branch]
+        # Extract effective scores for comments (depth >= 0)
+        effective_scores = []
+        for node in branch:
+            if 'effective_score' in node:  # Check if the node has an effective score
+                effective_scores.append(str(node['effective_score']))
+        # Print branch authors and effective scores
         print(f"Branch {i}: {' -> '.join(authors)}")
+        print(f"Effective Scores: {' -> '.join(effective_scores) if effective_scores else 'N/A'}")
 
 
 
