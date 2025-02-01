@@ -15,11 +15,27 @@ from thread_analysis_functions import (
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
 
-def analyze_reddit_thread(url):
-    summary_raw_content = prompts['summarize_raw_content']
-    # summary_of_all = prompts['summarize_the_summaries']
-    # branch_summary = prompts['branch_summary']
-    summary_for_5yo = prompts['summarize_like_im_5']
+def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5):
+    # Define the length-based sentence to add to the prompts
+    if summary_length == "Short":
+        length_sentence = "Your summary should be concise, ideally between 100 and 200 words, depending on the original thread's length."
+    elif summary_length == "Medium":
+        length_sentence = "Your summary will be medium sized, preferably in between 250 to 350 words, depending on the original thread's length."
+    elif summary_length == "Long":
+        length_sentence = "Your summary should be extensive, with a minimum of 400 words unless the original thread is shorter. In that case, match the length of the original thread."
+    else:
+        length_sentence = ""  # Default case if summary_length is not recognized
+
+    # Construct system messages by merging template with length instructions
+    system_message_normal_summary = {
+        "role": prompts['summarize_raw_content']['role'],
+        "content": prompts['summarize_raw_content']['content'].format(focus=summary_focus) + " " + length_sentence
+    }
+
+    system_message_eli5 = {
+        "role": prompts['summarize_like_im_5']['role'],
+        "content": prompts['summarize_like_im_5']['content'].format(focus=summary_focus) + " " + length_sentence
+    }
 
     # Fetch the HTML response using Selenium
     json_response = fetch_json_response(url)
@@ -33,53 +49,32 @@ def analyze_reddit_thread(url):
         "comments": comments  # list of dicts
     }
 
-    # print(all_data)
-    # print("\n\n")
 
     # 1 ---- Get effective-score weighted overall summary. 
-    chat_history = [summary_raw_content]
+    chat_history = [system_message_normal_summary]
     user_message = {
         "role": "user", 
         "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
     }
     chat_history.append(user_message)
-    result_old = chat_completion(chat_history)
+    result = chat_completion(chat_history)
 
-    # # Identify and extract linear branches within the tree structure. 
-    # linear_branches = get_linear_branches(all_data) # List[List[dict]] (A list of lists of dictionaries) Each branch is a list of comment/OP nodes
+    if include_eli5:
+        # 2 ---- Get summary for 5 years old
+        chat_history = [system_message_eli5]
+        user_message = {
+            "role": "user", 
+            "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
+        }
+        chat_history.append(user_message)
+        result_for_5yo = chat_completion(chat_history)
+    else:
+        result_for_5yo = None
 
-    # print_branches_authors(linear_branches)
-
-    # # Run async processing within sync context
-    # summaries = asyncio.run(process_branches_async(linear_branches, branch_summary))
-
-    # for summary in summaries:
-    #     print(summary)
-    #     print("\n")
-
-    # # 2 ---- Get summary of summaries.
-    # chat_history = [summary_of_all]
-    # user_message = {
-    #     "role": "user", 
-    #     "content": json.dumps(summaries, indent=4)  # Convert to JSON string for readability
-    # }
-    # chat_history.append(user_message)
-    # result = chat_completion(chat_history)
-
-    # 3 ---- Get summary for junior_cs
-    chat_history = [summary_for_5yo]
-    user_message = {
-        "role": "user", 
-        "content": json.dumps(all_data, indent=4)  # Convert to JSON string for readability
-    }
-    chat_history.append(user_message)
-    result_for_5yo = chat_completion(chat_history)
-
-    # 4 --- some notable comments
+    # 3 --- some notable comments
     a,b,c,d = deep_analysis_of_thread(all_data)
 
-
-    return result_old, result_for_5yo, [a,b,c,d]
+    return result, result_for_5yo, [a,b,c,d]
 
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics

@@ -1,31 +1,10 @@
 summarize_raw_content:
   role: system
   content: |
-    You will receive the content of a Reddit post along with the title, original post and the comment tree. Your task is to analyze everything to produce a comprehensive overview of the entire discussion. Each comment in the thread includes an "ef_score" field, (which stands for effective score) reflecting its adherence to facts. This can aid in branch analysis. If a sub-comment has a higher effective score than its parent, it likely indicates that the parent comment was less factual and contained misinformation that the sub-comment corrects. Take this into account when analyzing the thread to reach conclusions but do not mention about effective scores in your summary. These scores are only for you to comprehend the thema better. Identify key insights, contradictions, biases, key takeaways and any other notable patterns or themes that emerge.
-
-# summarize_the_summaries:
-#   role: system
-#   content: |
-#     You will receive multiple summaries, each representing a linear branch of a Reddit thread, starting from the original post and ending at the last comment in that branch. Your task is to analyze these summaries to produce a comprehensive overview of the entire discussion. Identify key insights, contradictions, biases, and any other notable patterns or themes that emerge.
+    You will receive the content of a Reddit post along with the title, original post and the comment tree. Your task is to analyze everything to produce a comprehensive summary of the entire discussion. When summarizing, prioritize: {focus}. Craft a summary centered around this key point. Each comment in the thread includes an "ef_score" field, (which stands for effective score) reflecting its adherence to facts. This can aid in branch analysis. If a sub-comment has a higher effective score than its parent, it likely indicates that the parent comment was less factual and contained misinformation that the sub-comment corrects. Take this into account when analyzing the thread to reach conclusions but do not mention about effective scores in your summary. These scores are only for you to comprehend the thema better. Identify key insights, contradictions, biases, key takeaways and any other notable patterns or themes that emerge. 
 
 summarize_like_im_5:
   role: system
-  content:
-    You will receive multiple summaries, each representing a linear branch of a Reddit thread, starting from the original post and ending at the last comment in that branch. Find the most important ideas, any disagreements, and anything really interesting. Then, explain it in a super simple way that even a 5-year-old can understand!
+  content: |
+    You will receive the content of a Reddit post along with the title, original post and the comment tree. Your task is to analyze everything to produce a comprehensive summary of the entire discussion. When summarizing, prioritize: {focus}. Craft a summary centered around this key point. Find the most important ideas, any disagreements, and anything really interesting. Then, explain it in a super simple way that even a 5-year-old can understand!
 
-# branch_summary:
-#   role: system
-#   content: |
-#     You are a skilled discourse analyst. Analyze this Reddit conversation branch by extracting:
-
-#     Core Claim: The main argument or consensus.
-#     Discussion Flow: How arguments and counterarguments develop.
-#     Argument Breakdown: Main claims, rebuttals, and supporting logic.
-#     Tone Shifts: Changes in sentiment and what triggered them.
-#     Final State: Whether the discussion reached agreement, remained contested, or broke into sub-threads. 
-    
-#     Each comment in the branch includes an "effective_score" field, reflecting its adherence to facts. This can aid in branch analysis.
-#     Earlier comment in the branch implies parent comment.
-#     If a sub-comment has a higher effective score than its parent, it likely indicates that the parent comment was less factual and contained misinformation that the sub-comment corrects.
-#     Reword your summary so that it is about half the length of the combined texts in the branch."""
-    
