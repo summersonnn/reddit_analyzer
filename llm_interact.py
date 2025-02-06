@@ -8,18 +8,22 @@ import asyncio
 
 def chat_completion(
     chat_history: List[Dict[str, str]],
-    temperature: float = 0.2
+    temperature: float = 0.2,
+    is_image=False
 ) -> str:
     """
     Unified chat completion function for both local and cloud LLMs using OpenAI-compatible API.
     """
     # Determine if we're using local or cloud based on environment
     is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
-    
-    # Get complete base URL with path
     base_url = os.getenv("BASE_URL" if is_local else "CLOUD_BASE_URL").rstrip('/')
     api_key = os.getenv("VLLM_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
-    model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME")
+    
+    if not is_image:
+        model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME")
+    else: # image
+        model = os.getenv("MODEL_PATH" if is_local else "CLOUD_VMODEL_NAME")
+
 
     # Create OpenAI client
     client = OpenAI(
@@ -96,7 +100,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Check if the model is multimodal and adjust the chat history accordingly
-    is_multimodal = False
+    is_multimodal = True
 
     chat_history = [
         {"role": "system", "content": "You are a helpful assistant."},
@@ -109,7 +113,7 @@ if __name__ == "__main__":
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": "https://i.redd.it/ij7ubrn3mkfe1.jpeg"
+                        "url": "https://i.redd.it/duiwqfpzq3he1.png"
                     }
                 },
                 {
@@ -125,7 +129,7 @@ if __name__ == "__main__":
         })
 
     try:
-        response = chat_completion(chat_history)
+        response = chat_completion(chat_history, is_image=True)
         print(f"Assistant: {response}")
 
     except Exception as e:

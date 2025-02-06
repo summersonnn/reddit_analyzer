@@ -26,6 +26,10 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
         st.markdown("---")
 
     st.markdown("### 📝 Notable comments")
+ 
+    # Initialize session state for button toggling if not exists
+    if 'active_button' not in st.session_state:
+        st.session_state.active_button = None
 
     # --- Button and expander section ---
     comment_types = [
@@ -36,7 +40,15 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
     ]
 
     for i, (comment_body, value, is_root) in enumerate(notable_comments):
-        if st.button(comment_types[i]):
+        if st.button(comment_types[i], key=f"button_{i}"):
+            # Toggle logic: if clicking the same button, clear it; if clicking a different button, set it
+            if st.session_state.active_button == i:
+                st.session_state.active_button = None
+            else:
+                st.session_state.active_button = i
+
+        # Show expander if this button is active
+        if st.session_state.active_button == i:
             with st.expander(f"See {comment_types[i]}", expanded=True):
                 if comment_body:
                     st.markdown(f"- Comment: {comment_body}")

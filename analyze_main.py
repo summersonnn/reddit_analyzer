@@ -15,7 +15,7 @@ from thread_analysis_functions import (
     get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
 )
 
-def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5):
+def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone):
     # Define the length-based sentence to add to the prompts
     if summary_length == "Short":
         length_sentence = "Your summary should be concise, ideally between 100 and 200 words, depending on the original thread's length."
@@ -26,10 +26,14 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5):
     else:
         length_sentence = ""  # Default case if summary_length is not recognized
 
-    # Construct system messages by merging template with length instructions
+    # Construct system messages by merging template with length and tone instructions
+    tone_prompt = prompts[tone]['content'] if tone in prompts else ""
+    print(tone_prompt)
+
+    # Construct system messages by merging template with length and tone instructions
     system_message_normal_summary = {
         "role": prompts['summarize_raw_content']['role'],
-        "content": prompts['summarize_raw_content']['content'].format(focus=summary_focus) + " " + length_sentence
+        "content": prompts['summarize_raw_content']['content'].format(focus=summary_focus) + " " + length_sentence + "\nConform to the following tone and imitate it: " + tone_prompt
     }
 
     system_message_eli5 = {
@@ -48,7 +52,6 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5):
         "original_post": original_post,
         "comments": comments  # list of dicts
     }
-
 
     # 1 ---- Get effective-score weighted overall summary. 
     chat_history = [system_message_normal_summary]

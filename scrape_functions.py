@@ -96,13 +96,27 @@ def return_OP(json_data):
 
         # Create the content dictionary (similar to comment structure)
         content_dict = {
-            'author': data.get('author', ''),  # Author of the post
-            'score': data.get('score', 0),    # Score of the post
-            'ef_score': data.get('score', 0)/2, 
-            'body': content,                      # Content of the post
-            'type': data.get('link_flair_text', '')	,
-            'image_link': data.get('url', ''),  # only if it's image post (check the extension)
+            'author': data.get('author', ''),
+            'score': data.get('score', 0),
+            'ef_score': data.get('score', 0)/2,
+            'body': content,
+            'type': data.get('link_flair_text', ''),
+            'image_link': [],
         }
+
+        # Extract image links from gallery posts
+        if data.get('is_gallery', False):
+            media_metadata = data.get('media_metadata', {})
+            for img_id, img_info in media_metadata.items():
+                if 's' in img_info:  # 's' contains source image data
+                    # Get URL and fix HTML-encoded ampersands
+                    image_url = img_info['s']['u'].replace('&amp;', '&')
+                    content_dict['image_link'].append(image_url)
+        else:
+            # Fallback to URL if it's a direct image link
+            url = data.get('url_overridden_by_dest', data.get('url', ''))
+            if any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
+                content_dict['image_link'].append(url)
 
         return (title, content_dict)
 

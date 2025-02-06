@@ -102,7 +102,7 @@ def home_page():
 
     # Summary Focus and Summary Length Section
     st.markdown("### Summary Options")
-    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust column widths for better layout
+    col1, col2, col3, col4 = st.columns([1, 2, 1, 1])  # Adjusted column widths to accommodate new column
 
     with col1:
         # Radio button for summary focus (stacked vertically)
@@ -148,6 +148,15 @@ def home_page():
             key="include_eli5"
         )
 
+    with col4:
+        # Dropdown for tone selection
+        tone = st.selectbox(
+            "Summary Tone:",
+            ["Teacher", "Pompous", "Foulmouthed", "Clickbaiter_Youtuber"],
+            index=0,  # Default to "Normal"
+            key="tone_selector"
+        )
+
     st.markdown("---")  # Horizontal line for separation
 
     # Analyze Button
@@ -157,9 +166,10 @@ def home_page():
             st.session_state.url = url
             st.session_state.summary_focus = summary_focus
             st.session_state.summary_length = summary_length
+            st.session_state.tone = tone
 
             # Run analysis
-            analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, include_eli5)
+            analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone)
 
             # Store the results in session state
             st.session_state.analysis_result = analysis_result
