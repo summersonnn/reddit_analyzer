@@ -1,128 +1,84 @@
-def get_comment_with_highest_score(comments):
+def get_top_three_comments_by_ef_score(comments, limit=3):
     """
-    Finds the comment with the highest score in the entire comment tree and returns it along with its score and whether it's a root comment.
+    Finds the top three comments in the entire comment tree based on their ef_score
+    and returns them in descending order along with their parent comments.
 
     Args:
-        comments (list): List of comment dictionaries.
+        comments (list): List of comment dictionaries. Each comment contains keys such as
+                         'author', 'score', 'ef_score', 'body', 'depth', and 'replies'.
 
     Returns:
-        tuple: (comment, score, is_root) where:
-            - `comment` is the comment with the highest score.
-            - `score` is its score.
-            - `is_root` is a boolean indicating whether the comment is a root comment.
+        list: A list of at most three tuples. Each tuple contains two dictionaries:
+              (main_comment, parent_comment)
+              Comments are ordered by ef_score in descending order.
+              If a comment has no parent (top-level), parent_comment will be None.
     """
-    highest_score_comment = None
-    max_score = -float('inf')
+    all_comments = []
+    parent_map = {}  # Maps comment to its parent
 
-    def traverse(comment, is_root):
-        nonlocal highest_score_comment, max_score
-        if comment['score'] > max_score:
-            max_score = comment['score']
-            highest_score_comment = (comment, is_root)
-        for reply in comment['replies']:
-            traverse(reply, False)  # Replies are not root comments
+    def traverse(comment, parent=None):
+        # Store reference to parent
+        parent_map[id(comment)] = parent
+        
+        all_comments.append(comment)
+        for reply in comment.get('replies', []):
+            traverse(reply, comment)
 
+    # Traverse the entire comment tree
     for comment in comments:
-        traverse(comment, True)  # Root comments are at depth 0
+        traverse(comment)
 
-    if highest_score_comment:
-        comment, is_root = highest_score_comment
-        return (comment['body'], max_score, is_root)
-    return (None, -1, False)  # Fallback if no comments exist
+    # Sort all comments by ef_score in descending order and pick the top three
+    top_three = sorted(all_comments, key=lambda c: c.get('ef_score', 0), reverse=True)[:limit]
 
-def get_root_comment_with_highest_score(comments):
+    # For each comment, create tuple with cleaned comment and its parent
+    result = []
+    for comment in top_three:
+        main_comment = {k: v for k, v in comment.items() if k != "replies"}
+        parent = parent_map[id(comment)]
+        parent_comment = {k: v for k, v in parent.items() if k != "replies"} if parent else None
+        result.append((main_comment, parent_comment))
+    
+    return result
+
+
+# A comment is imported if its ef_score is bigger than its parent's ef_score
+# When you find such comment pairs (parent and child), put them in a list as a tuple.
+# You must order the list by the difference between the child's ef_score and the parent's ef_score in descending order.
+def get_important_comments(comments, limit=3):
     """
-    Finds the root comment with the highest score and returns it along with its score and whether it's a root comment.
+    Identifies important comment pairs from the comment hierarchy.
+
+    A comment pair (parent, child) is considered important if the child's ef_score
+    is greater than the parent's ef_score, and the child's score is not equal to 1.
+    The function recursively traverses the comment tree to collect such pairs.
+    When a pair is found, the 'replies' key is removed from both the parent and child
+    comments before adding them to the list. Finally, the pairs are sorted in descending
+    order based on the difference between the child's ef_score and the parent's ef_score.
 
     Args:
-        comments (list): List of comment dictionaries.
+        comments (list): A list of comment dictionaries. Each dictionary represents a comment
+                         and includes keys such as 'author', 'score', 'ef_score', 'body', 'depth',
+                         and 'replies' (which is a list of sub-comments).
 
     Returns:
-        tuple: (comment, score, is_root) where:
-            - `comment` is the root comment with the highest score.
-            - `score` is its score.
-            - `is_root` is a boolean indicating whether the comment is a root comment (always True here).
+        list: A list of tuples, where each tuple contains a parent comment and its child comment
+              (both without the 'replies' key), sorted by the difference
+              (child's ef_score - parent's ef_score) in descending order.
     """
-    highest_score_comment = None
-    max_score = -float('inf')
+    important_pairs = []
 
-    for comment in comments:
-        if comment['depth'] == 0 and comment['score'] > max_score:
-            max_score = comment['score']
-            highest_score_comment = comment
+    def traverse(parent):
+        for child in parent.get('replies', []):
+            if child.get('ef_score', 0) > parent.get('ef_score', 0) and child.get('score', 0) != 1:
+                parent_no_replies = {k: v for k, v in parent.items() if k != "replies"}
+                child_no_replies = {k: v for k, v in child.items() if k != "replies"}
+                important_pairs.append((parent_no_replies, child_no_replies))
+            traverse(child)
 
-    if highest_score_comment:
-        return (highest_score_comment['body'], max_score, True)
-    return (None, -1, False)  # Fallback if no root comments exist
+    for root_comment in comments:
+        traverse(root_comment)
 
-def get_comment_with_most_subcomments(comments):
-    """
-    Finds the comment (root or sub-comment) with the most sub-comments (recursively counted) and returns it along with the count and whether it's a root comment.
+    important_pairs.sort(key=lambda pair: pair[1].get('ef_score', 0) - pair[0].get('ef_score', 0), reverse=True)
+    return important_pairs[:limit]
 
-    Args:
-        comments (list): List of comment dictionaries.
-
-    Returns:
-        tuple: (comment, count, is_root) where:
-            - `comment` is the comment with the most sub-comments.
-            - `count` is the total number of sub-comments.
-            - `is_root` is a boolean indicating whether the comment is a root comment.
-    """
-    most_subcomments_comment = None
-    max_subcomments = -1
-
-    def count_subcomments(comment):
-        count = 0
-        for reply in comment['replies']:
-            count += 1 + count_subcomments(reply)
-        return count
-
-    def traverse(comment, is_root):
-        nonlocal most_subcomments_comment, max_subcomments
-        subcomment_count = count_subcomments(comment)
-        if subcomment_count > max_subcomments:
-            max_subcomments = subcomment_count
-            most_subcomments_comment = (comment, is_root)
-        for reply in comment['replies']:
-            traverse(reply, False)  # Replies are not root comments
-
-    for comment in comments:
-        traverse(comment, True)  # Root comments are at depth 0
-
-    if most_subcomments_comment:
-        comment, is_root = most_subcomments_comment
-        return (comment['body'], max_subcomments, is_root)
-    return (None, -1, False)  # Fallback if no comments exist
-
-def get_comment_with_most_direct_subcomments(comments):
-    """
-    Finds the comment (root or sub-comment) with the most direct sub-comments and returns it along with the count and whether it's a root comment.
-
-    Args:
-        comments (list): List of comment dictionaries.
-
-    Returns:
-        tuple: (comment, count, is_root) where:
-            - `comment` is the comment with the most direct sub-comments.
-            - `count` is the number of direct sub-comments.
-            - `is_root` is a boolean indicating whether the comment is a root comment.
-    """
-    most_direct_subcomments_comment = None
-    max_direct_subcomments = -1
-
-    def traverse(comment, is_root):
-        nonlocal most_direct_subcomments_comment, max_direct_subcomments
-        direct_subcomments = len(comment['replies'])
-        if direct_subcomments > max_direct_subcomments:
-            max_direct_subcomments = direct_subcomments
-            most_direct_subcomments_comment = (comment, is_root)
-        for reply in comment['replies']:
-            traverse(reply, False)  # Replies are not root comments
-
-    for comment in comments:
-        traverse(comment, True)  # Root comments are at depth 0
-
-    if most_direct_subcomments_comment:
-        comment, is_root = most_direct_subcomments_comment
-        return (comment['body'], max_direct_subcomments, is_root)
-    return (None, -1, False)  # Fallback if no comments exist

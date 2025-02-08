@@ -9,10 +9,8 @@ from scrape_functions import (
     return_comments
 )
 from thread_analysis_functions import (
-    get_comment_with_highest_score,
-    get_root_comment_with_highest_score,
-    get_comment_with_most_subcomments,  # this includes root comments as well as sub-comments
-    get_comment_with_most_direct_subcomments, # this also includes root as well as sub-comments but only direct subcomments counted
+    get_top_three_comments_by_ef_score,
+    get_important_comments
 )
 
 def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone):
@@ -28,7 +26,6 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
 
     # Construct system messages by merging template with length and tone instructions
     tone_prompt = prompts[tone]['content'] if tone in prompts else ""
-    print(tone_prompt)
 
     # Construct system messages by merging template with length and tone instructions
     system_message_normal_summary = {
@@ -75,18 +72,16 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
         result_for_5yo = None
 
     # 3 --- some notable comments
-    a,b,c,d = deep_analysis_of_thread(all_data)
+    best_comments, important_comments = deep_analysis_of_thread(all_data)
 
-    return result, result_for_5yo, [a,b,c,d]
+    return result, result_for_5yo, [best_comments,important_comments]
 
 def deep_analysis_of_thread(all_data):
     # First, non-LLM statistics
-    a = get_comment_with_highest_score(all_data['comments'])
-    b = get_root_comment_with_highest_score(all_data['comments'])
-    c = get_comment_with_most_subcomments(all_data['comments'])
-    d = get_comment_with_most_direct_subcomments(all_data['comments'])
+    a = get_top_three_comments_by_ef_score(all_data['comments'])
+    b = get_important_comments(all_data['comments'])
 
-    return (a,b,c,d)
+    return (a,b)
 
 def get_linear_branches(all_data):
     # Create the original post (OP) node

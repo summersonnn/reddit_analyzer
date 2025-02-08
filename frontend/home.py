@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 
 import streamlit as st
-from analysis import analysis_page, dummy_analysis_page
+from analysis import analysis_page
 
 # Add parent directory to path to allow importing analyze_main
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

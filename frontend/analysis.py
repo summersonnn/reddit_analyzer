@@ -31,51 +31,76 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
     if 'active_button' not in st.session_state:
         st.session_state.active_button = None
 
-    # --- Button and expander section ---
-    comment_types = [
-        "Comment with Highest Score",
-        "Root Comment with Highest Score",
-        "Comment with Most Subcomments",
-        "Comment with Most Direct Subcomments"
-    ]
+    # Create buttons and handle display
+    if st.button("Best Comments", key="button_0"):
+        if st.session_state.active_button == 0:
+            st.session_state.active_button = None
+        else:
+            st.session_state.active_button = 0
 
-    for i, (comment_body, value, is_root) in enumerate(notable_comments):
-        if st.button(comment_types[i], key=f"button_{i}"):
-            # Toggle logic: if clicking the same button, clear it; if clicking a different button, set it
-            if st.session_state.active_button == i:
-                st.session_state.active_button = None
-            else:
-                st.session_state.active_button = i
+    if st.button("Important Comments", key="button_1"):
+        if st.session_state.active_button == 1:
+            st.session_state.active_button = None
+        else:
+            st.session_state.active_button = 1
 
-        # Show expander if this button is active
-        if st.session_state.active_button == i:
-            with st.expander(f"See {comment_types[i]}", expanded=True):
-                if comment_body:
-                    st.markdown(f"- Comment: {comment_body}")
-                    if comment_types[i] in ["Comment with Highest Score", "Root Comment with Highest Score"]:
-                        st.markdown(f"- Score: {value}")
-                    elif comment_types[i] == "Comment with Most Subcomments":
-                        st.markdown(f"- Total Subcomments: {value}")
-                    elif comment_types[i] == "Comment with Most Direct Subcomments":
-                        st.markdown(f"- Direct Subcomments: {value}")
-                    st.markdown(f"- Is Root Comment: {is_root}")
-                else:
-                    st.markdown("- No comment found for this criteria.")
+    # Display content based on active button
+    if st.session_state.active_button == 0:
+        with st.expander("See Best Comments", expanded=True):
+            display_best_comments(notable_comments[0])
+    elif st.session_state.active_button == 1:
+        with st.expander("See Important Comments", expanded=True):
+            display_important_comments(notable_comments[1])
 
     # Return to home button
     if st.button("⬅️ Analyze Another"):
         st.session_state.page = "home"
         st.rerun()
 
-def dummy_analysis_page(analysis_result):
-    # Header
-    st.markdown("""
-        <div class="main-header">
-            <p class="header-text">📊 Analysis Results</p>
-            <p class="subheader-text">Detailed insights for: {}</p>
-        </div>
-    """.format(st.session_state.get('url', 'Unknown URL')), unsafe_allow_html=True)
 
-    # Display the analysis result as a paragraph
-    st.markdown("### 📝 Analysis Summary")
-    st.markdown(f"<p style='font-size: 16px;'>{analysis_result}</p>", unsafe_allow_html=True)
+def display_best_comments(comments_group):
+    """Display the top comments with their parent context"""
+    if comments_group:
+        for idx, (main_comment, parent_comment) in enumerate(comments_group, start=1):
+            st.markdown(f"**Comment {idx}:**")
+            
+            # Display parent comment if it exists (provides context)
+            if parent_comment:
+                st.markdown("*Context:*")
+                st.markdown(f"{parent_comment.get('body', 'No content available')}")
+                st.markdown(f"- Score: {parent_comment.get('score', 'N/A')}")
+                st.markdown(f"- ef_score: {parent_comment.get('ef_score', 'N/A')}")
+                st.markdown("*Top Comment:*")
+            
+            # Display main comment
+            st.markdown(f"{main_comment.get('body', 'No content available')}")
+            st.markdown(f"- Score: {main_comment.get('score', 'N/A')}")
+            st.markdown(f"- ef_score: {main_comment.get('ef_score', 'N/A')}")
+            st.markdown("---")
+    else:
+        st.markdown("- No top comments found.")
+
+def display_important_comments(comments_group):
+    """Display the parent-child pairs where child outperforms parent"""
+    if comments_group:
+        for idx, (parent_comment, child_comment) in enumerate(comments_group, start=1):
+            st.markdown(f"**Important Comment Pair {idx}:**")
+            
+            # Display parent comment
+            st.markdown("*Parent Comment:*")
+            st.markdown(f"{parent_comment.get('body', 'No content available')}")
+            st.markdown(f"- Score: {parent_comment.get('score', 'N/A')}")
+            st.markdown(f"- ef_score: {parent_comment.get('ef_score', 'N/A')}")
+            
+            # Display child comment that outperformed parent
+            st.markdown("*Reply that Outperformed Parent:*")
+            st.markdown(f"{child_comment.get('body', 'No content available')}")
+            st.markdown(f"- Score: {child_comment.get('score', 'N/A')}")
+            st.markdown(f"- ef_score: {child_comment.get('ef_score', 'N/A')}")
+            
+            # Show the improvement
+            ef_score_diff = child_comment.get('ef_score', 0) - parent_comment.get('ef_score', 0)
+            st.markdown(f"*Improvement in ef_score: +{ef_score_diff:.2f}*")
+            st.markdown("---")
+    else:
+        st.markdown("- No important comment pairs found.")
