@@ -129,27 +129,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An error occurred: {e}")
 
-
-"""Try this:
-
-chat_history = [
-    {
-        "role": "user",
-        "content": [
-            # Post
-            {"type": "text", "text": "POST: [Post text]"},
-            {"type": "image_url", "image_url": {"url": "post-image.jpg"}},
-            
-            # Comment 1
-            {"type": "text", "text": "COMMENT 1: [Comment text]"},
-            {"type": "image_url", "image_url": {"url": "comment1-image.jpg"}},
-            
-            # Comment 2 (text-only, no image)
-            {"type": "text", "text": "COMMENT 2: [Comment text]"},
-            
-            # Final instruction for thread summary
-            {"type": "text", "text": "Summarize the entire thread, including key details from the post and comments above."}
-        ]
-    }
-]
-"""

@@ -2,6 +2,7 @@ import requests
 import os
 import time
 import random
+import re
 
 def fetch_json_response(url, max_retries=4):
     """
@@ -94,14 +95,21 @@ def return_OP(json_data):
         title = data.get('title', '')
         content = data.get('selftext', '')
 
+        if "reddit.com" in data.get('url', '') or "v.redd.it" in data.get('url', ''):
+            url = data.get('url', '')
+        else:
+            url = f"https://www.reddit.com{data.get('permalink', '')}"
+
         # Create the content dictionary (similar to comment structure)
         content_dict = {
+            'url': url, # thread link
             'author': data.get('author', ''),
             'score': data.get('score', 0),
             'ef_score': data.get('score', 0)/2,
             'body': content,
             'type': data.get('link_flair_text', ''),
             'image_link': [],
+            'extra_content_link': [],
         }
 
         # Extract image links from gallery posts
@@ -114,10 +122,19 @@ def return_OP(json_data):
                     content_dict['image_link'].append(image_url)
         else:
             # Fallback to URL if it's a direct image link
-            url = data.get('url_overridden_by_dest', data.get('url', ''))
-            if any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
-                content_dict['image_link'].append(url)
+            url = data.get('url_overridden_by_dest', False)
+            if url:
+                if any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
+                    content_dict['image_link'].append(url)
+                else:
+                    # This is for non-image content (e.g., articles)
+                    content_dict['extra_content_link'].append(url)
 
+        new_content, image_links = extract_links_from_selftext(content)
+        content_dict["extra_content_link"] += new_content
+        content_dict["image_link"] += image_links
+
+        # print("Content dict: ", content_dict)
         return (title, content_dict)
 
     except (KeyError, IndexError, TypeError) as e:
@@ -261,5 +278,38 @@ def prettify_comments(comments):
         formatted_comments += format_comment(comment)
 
     return formatted_comments
+
+
+def extract_links_from_selftext(text):
+    """
+    Extracts all URLs from the given selftext string and separates those containing '&amp'.
+    
+    Args:
+        text (str): The input text containing URLs.
+    
+    Returns:
+        tuple:
+            - image_links (list): URLs that include '&amp'.
+            - extra_content_links (list): All other extracted URLs.
+    """
+    # Regular expression pattern to match URLs
+    url_pattern = r'https?://[^\s\)]+'
+    
+    # Find all matching URLs in the text
+    links = re.findall(url_pattern, text)
+    
+    # Initialize lists to store separated links
+    image_links = []
+    extra_content_links = []
+    
+    # Iterate through all extracted links
+    for link in links:
+        if '&amp' in link:
+            link = link.replace('&amp;', '&')
+            image_links.append(link)
+        else:
+            extra_content_links.append(link)
+    
+    return extra_content_links, image_links
 
 
