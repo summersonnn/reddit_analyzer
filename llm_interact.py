@@ -4,7 +4,7 @@ from openai import OpenAI
 from openai import AsyncOpenAI
 import json
 import asyncio
-
+import time
 
 def chat_completion(
     chat_history: List[Dict[str, str]],
@@ -49,51 +49,45 @@ def chat_completion(
 # Async version of chat completion 
 async def async_chat_completion(
     chat_history: List[Dict[str, str]],
-    temperature: float = 0.2
+    temperature: float = 0.2,
+    is_image: bool = False
 ) -> str:
-    """Async version of chat completion for parallel processing"""
+    """
+    Asynchronous chat completion function for both local and cloud LLMs using an OpenAI-compatible API.
+    """
+    # Determine if we're using local or cloud based on environment variables
     is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+    base_url = os.getenv("BASE_URL" if is_local else "CLOUD_BASE_URL").rstrip('/')
+    api_key = os.getenv("VLLM_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
     
-    base_url = os.getenv("BASE_URL" if is_local else "CLOUD_BASE_URL", "").rstrip('/')
-    api_key = os.getenv("VLLM_API_KEY" if is_local else "CLOUD_LLM_API_KEY", "")
-    model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME", "gpt-3.5-turbo")
-
+    # Choose the appropriate model based on whether it's an image request or not
+    if not is_image:
+        model = os.getenv("MODEL_PATH" if is_local else "CLOUD_MODEL_NAME")
+    else:
+        model = os.getenv("MODEL_PATH" if is_local else "CLOUD_VMODEL_NAME")
+    
+    # Create the asynchronous OpenAI client
     client = AsyncOpenAI(
         api_key=api_key,
         base_url=base_url,
     )
-
+    
+    # Prepare request parameters
     request_params = {
         "model": model,
-        "messages": chat_history,
+        "messages": chat_history.copy(),
         "temperature": temperature,
     }
 
+    start_time = time.time()
+    print("Start time of the async_chat_completion function: ", start_time)
+    
     try:
         response = await client.chat.completions.create(**request_params)
+        print("Finish time of the async_chat_completion function: ", time.time())
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error during async request to {base_url}")
         raise
-
-async def process_branches_async(branches: List[List[Dict]], branch_summary: str) -> List[str]:
-    """Wrapper for async processing"""
-    
-    async def process_single_branch(branch):
-        branch_content = json.dumps([{
-            'author': node['author'],
-            'content': node['body'],
-            'depth': node['depth']
-        } for node in branch], indent=2)
-
-        return await async_chat_completion([
-            branch_summary,
-            {"role": "user", "content": branch_content}
-        ])
-
-    # Create and run all tasks
-    tasks = [process_single_branch(branch) for branch in branches]
-    return await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
