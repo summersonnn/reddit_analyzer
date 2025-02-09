@@ -133,11 +133,15 @@ def return_OP(json_data):
         new_content, image_links = extract_links_from_selftext(content)
         content_dict["extra_content_link"] += new_content
         content_dict["image_link"] += image_links
+        content_dict["extra_content_link"] = filter_links(content_dict["extra_content_link"])
 
-        # print("Content dict: ", content_dict)
+
+        print("Content dict: ", content_dict)
+        raise ValueError
         return (title, content_dict)
 
     except (KeyError, IndexError, TypeError) as e:
+        raise ValueError
         return (None, None)
 
 def return_comments(json_data):
@@ -312,4 +316,18 @@ def extract_links_from_selftext(text):
     
     return extra_content_links, image_links
 
+# can't scrape x or pdf content now. look at this in the future.
+def filter_links(links):
+    """
+    Removes links that contain 'x.com' or '.pdf' (case-insensitive).
 
+    Parameters:
+        links (list of str): The list of URLs to be filtered.
+
+    Returns:
+        list of str: A new list with the unwanted links removed.
+    """
+    return [
+        link for link in links
+        if "x.com" not in link.lower() and ".pdf" not in link.lower()
+    ]

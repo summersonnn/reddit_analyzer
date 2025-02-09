@@ -125,6 +125,10 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     """
     html = fetch_html(url)
     main_content = extract_main_content(html, url)
+
+    print(html)
+    print(main_content)
+    print("\n\n")
     
     # Prepare the chat history
     chat_history = [
@@ -138,7 +142,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
         {"role": "user", "content": (
             f"Please provide a concise summary (100 to {word_count} words) of the following content, "
             "focusing on the main theme and ignoring sidebars, ads, and other irrelevant information.\n\n"
-            f"{main_content}"
+            f"{main_content[:4096]}"
         )}
     ]
     
@@ -148,7 +152,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
 
 if __name__ == "__main__":
     # Example usage
-    test_url = "https://github.com/peterc/infermlx?tab=readme-ov-file"
+    test_url = "https://www.hawley.senate.gov/wp-content/uploads/2025/01/Hawley-Decoupling-Americas-Artificial-Intelligence-Capabilities-from-China-Act.pdf"
 
     try:
         summary = generate_summary(test_url, word_count=200)
