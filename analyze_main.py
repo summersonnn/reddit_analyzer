@@ -12,6 +12,7 @@ from thread_analysis_functions import (
     get_top_three_comments_by_ef_score,
     get_important_comments
 )
+from try_html_summary import generate_summary
 
 
 def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone):
@@ -56,16 +57,32 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
 
-    # --- Image analysis ---
+    # --- Image and link analysis ---
     image_links = original_post.get("image_link", [])
-    image_responses = process_images(image_links)
+    extra_links = original_post.get("extra_content_link", [])
+    image_responses, link_summaries = process_media_content(image_links, extra_links)
+    print("-----------------------------------")
+    print(image_responses)
+    print(link_summaries)
+    print("-----------------------------------")
+    
+    media_analysis = ""
     
     if image_responses:
-        combined_image_analysis = f"There are {len(image_responses)} image(s) in this post. Here are the analyses of these images:\n"
+        media_analysis += f"\nThere are {len(image_responses)} image(s) in this post. Here are the analyses of these images:\n"
         for idx, resp in enumerate(image_responses, start=1):
-            combined_image_analysis += f"\nImage {idx} analysis: {resp}"
-        original_post["body"] = combined_image_analysis
-        print(original_post["body"])
+            media_analysis += f"\nImage {idx} analysis: {resp}"
+            
+    if link_summaries:
+        media_analysis += f"\n\nThere are {len(link_summaries)} external link(s) in this post. Here are their summaries:\n"
+        for idx, summary in enumerate(link_summaries, start=1):
+            media_analysis += f"\nLink {idx} summary: {summary}"
+    
+    if media_analysis:
+        original_post["body"] = media_analysis
+    print("-----------------------------------")
+    print("\n")
+    print(original_post["body"])
 
     # --- Update all_data with the updated original_post ---
     all_data = {
@@ -112,26 +129,57 @@ def deep_analysis_of_thread(all_data):
 
     return (a,b)
 
-def process_images(image_links):
-    """Process images concurrently and return aggregated responses"""
-    if not image_links:
-        return None
-        
-    async def run_image_api_calls(links):
-        """Inner async handler for image processing"""
+def process_media_content(image_links, extra_content_links=None):
+    """Process images and extra content links concurrently and return aggregated responses"""
+    async def run_media_api_calls(img_links, content_links):
         tasks = []
-        for link in links:
-            chat_history_image = [{
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": link}},
-                    {"type": "text", "text": "Describe what's on this image:"}
-                ]
-            }]
-            tasks.append(async_chat_completion(chat_history_image, is_image=True))
-        return await asyncio.gather(*tasks)
+        
+        # Add image analysis tasks
+        if img_links:
+            for link in img_links:
+                chat_history_image = [{
+                    "role": "user", 
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": link}},
+                        {"type": "text", "text": "Describe what's on this image:"}
+                    ]
+                }]
+                tasks.append(async_chat_completion(chat_history_image, is_image=True))
+        
+        # Add link summary tasks        
+        if content_links:
+            for link in content_links:
+                tasks.append(asyncio.create_task(
+                    generate_summary_async(link, word_count=200)
+                ))
+                
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Split results into image and link summaries
+        num_images = len(img_links) if img_links else 0
+        image_results = results[:num_images]
+        link_results = results[num_images:]
+        
+        return image_results, link_results
 
-    return asyncio.run(run_image_api_calls(image_links))
+    if not image_links and not extra_content_links:
+        return None, None
+        
+    image_responses, link_summaries = asyncio.run(
+        run_media_api_calls(image_links, extra_content_links)
+    )
+    
+    return image_responses, link_summaries
+
+async def generate_summary_async(url: str, word_count: int = 200) -> str:
+    """Async wrapper around generate_summary"""
+    try:
+        return generate_summary(url, word_count)
+    except Exception as e:
+        print(f"Error generating summary for {url}: {e}")
+        return f"Failed to generate summary: {str(e)}"
+
+
 
 
 
