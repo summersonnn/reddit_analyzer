@@ -56,42 +56,16 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
 
-    # --- Run image API calls (one per image) ---
+    # --- Image analysis ---
     image_links = original_post.get("image_link", [])
-    if image_links:
-        async def run_image_api_calls():
-            tasks = []
-            for link in image_links:
-                # Prepare a separate chat history for each image
-                chat_history_image = [{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": link}
-                        },
-                        {
-                            "type": "text",
-                            "text": "Describe what's on this image:"
-                        }
-                    ]
-                }]
-                tasks.append(async_chat_completion(chat_history_image, is_image=True))
-            return await asyncio.gather(*tasks)
-
-        image_responses = asyncio.run(run_image_api_calls())
-
-        # Combine the image responses into a single analysis string.
+    image_responses = process_images(image_links)
+    
+    if image_responses:
         combined_image_analysis = f"There are {len(image_responses)} image(s) in this post. Here are the analyses of these images:\n"
         for idx, resp in enumerate(image_responses, start=1):
             combined_image_analysis += f"\nImage {idx} analysis: {resp}"
-        print(combined_image_analysis)
-        print("\n")
-
-        # Insert the combined analysis into original_post's "body"
         original_post["body"] = combined_image_analysis
-    else:
-        image_responses = None
+        print(original_post["body"])
 
     # --- Update all_data with the updated original_post ---
     all_data = {
@@ -137,6 +111,27 @@ def deep_analysis_of_thread(all_data):
     b = get_important_comments(all_data['comments'])
 
     return (a,b)
+
+def process_images(image_links):
+    """Process images concurrently and return aggregated responses"""
+    if not image_links:
+        return None
+        
+    async def run_image_api_calls(links):
+        """Inner async handler for image processing"""
+        tasks = []
+        for link in links:
+            chat_history_image = [{
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": link}},
+                    {"type": "text", "text": "Describe what's on this image:"}
+                ]
+            }]
+            tasks.append(async_chat_completion(chat_history_image, is_image=True))
+        return await asyncio.gather(*tasks)
+
+    return asyncio.run(run_image_api_calls(image_links))
 
 
 

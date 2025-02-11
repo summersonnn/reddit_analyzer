@@ -135,9 +135,7 @@ def return_OP(json_data):
         content_dict["image_link"] += image_links
         content_dict["extra_content_link"] = filter_links(content_dict["extra_content_link"])
 
-
-        print("Content dict: ", content_dict)
-        raise ValueError
+        # print("Content dict: ", content_dict)
         return (title, content_dict)
 
     except (KeyError, IndexError, TypeError) as e:

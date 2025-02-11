@@ -1,6 +1,7 @@
 import sys
 from dotenv import load_dotenv
 import os
+import re
 
 import streamlit as st
 from analysis import analysis_page
@@ -11,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analyze_main import analyze_reddit_thread
 
 load_dotenv()
+REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
 
 # Configure the default settings
 st.set_page_config(
@@ -96,7 +98,11 @@ def home_page():
     st.markdown("---")  # Horizontal line for separation
 
     # URL Input
-    url = st.text_input("Enter Reddit Thread URL", placeholder="https://www.reddit.com/r/example/comments/...")
+    url = st.text_input("Enter Reddit Thread URL", placeholder="https://www.reddit.com/r/example/comments/...", on_change=on_url_change)
+
+    is_valid_url = bool(re.match(REDDIT_URL_PATTERN, url))
+    if not is_valid_url:
+        st.error("Please enter a valid Reddit thread URL")
 
     st.markdown("---")  # Horizontal line for separation
 
@@ -137,7 +143,7 @@ def home_page():
         summary_length = st.selectbox(
             "Summary Length (proportional to original thread's length):",
             ["Short", "Medium", "Long"],
-            index=1  # Default to "Medium"
+            index=1 # Default to "Medium"
         )
         st.session_state.summary_length = summary_length
 
@@ -161,17 +167,22 @@ def home_page():
 
     # Analyze Button
     if st.button("Analyze", key="analyze_button"):
-        if url:
+        if not url:
+            st.warning("Please enter a Reddit thread URL.")
+        elif not is_valid_url:
+            st.warning("Please enter a valid Reddit thread URL. The URL should be from reddit.com")
+        else:
             # Store the URL, summary focus, and summary length in session state
             st.session_state.url = url
             st.session_state.summary_focus = summary_focus
             st.session_state.summary_length = summary_length
             st.session_state.tone = tone
 
-            # Run analysis
-            analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone)
+            # Add loading state during analysis
+            with st.spinner("Analyzing thread..."):
+                analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone)
 
-            # Store the results in session state
+            # Store the results in session state  
             st.session_state.analysis_result = analysis_result
             st.session_state.sum_for_5yo = sum_for_5yo
             st.session_state.notable_comments = notable_comments
@@ -179,8 +190,6 @@ def home_page():
             # Navigate to the analysis page
             st.session_state.page = "analysis"
             st.rerun()
-        else:
-            st.warning("Please enter a valid Reddit thread URL.")
 
 # Main app logic
 def main():
@@ -191,6 +200,10 @@ def main():
         home_page()
     else:
         analysis_page(st.session_state.analysis_result, st.session_state.sum_for_5yo, st.session_state.notable_comments)
+
+# Clear previous results when URL changes
+def on_url_change():
+    st.session_state.pop("analysis_result", None)
 
 if __name__ == "__main__":
     main()
