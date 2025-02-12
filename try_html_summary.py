@@ -2,7 +2,6 @@ import os
 from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
-from readability import Document
 import random
 import time
 from dotenv import load_dotenv
@@ -38,40 +37,42 @@ def extract_main_content(html: str, url: str) -> str:
         else:
             raise ValueError("Could not find the specified <article> tag in GitHub URL.")
     else:
-        doc = Document(html)
-        summary_html = doc.summary()
-        soup = BeautifulSoup(summary_html, 'html.parser')
+        soup = BeautifulSoup(html, 'html.parser')
         # Get text and replace multiple whitespaces with single space
         text = ' '.join(soup.get_text(separator=' ').split())
         return text
 
-def fetch_html(url: str) -> str:
+def fetch_html(url: str) -> tuple[str, bool]:
     """
     Fetches HTML content from the specified URL using proxies.
-    Implements a retry mechanism with random delays.
+    Returns tuple of (html_content, requires_js_flag)
     """
     headers = {
         'User-Agent': (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) ' 
             'Chrome/58.0.3029.110 Safari/537.3'
         )
     }
-    max_retries = 4
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, headers=headers, proxies=PROXIES, timeout=10)
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.RequestException as e:
-            print(f"Attempt {attempt + 1} failed with error: {e}")
-            if attempt < max_retries - 1:
-                delay = random.randint(1, 15)
-                print(f"Retrying after {delay} seconds...")
-                time.sleep(delay)
-            else:
-                print("Max retries reached. Unable to fetch HTML content.")
-                raise
+    
+    try:
+        response = requests.get(url, headers=headers, proxies=PROXIES, timeout=10)
+        response.raise_for_status()
+        content = response.text
+        
+        # Check if page requires JavaScript
+        requires_js = any(phrase in content.lower() for phrase in [
+            'enable javascript',
+            'javascript is required',
+            'please enable javascript',
+            'javascript must be enabled'
+        ])
+        
+        return content, requires_js
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch HTML content: {e}")
+        return None, True
 
 def generate_summary(url: str, word_count: int = 200) -> str:
     """
@@ -84,12 +85,21 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     Returns:
     *   A summary string.
     """
-    html = fetch_html(url)
+
+    # Check for unsupported URLs
+    if "x.com" in url or url.endswith(".pdf"):
+        return "No summary available. Ignore this and continue."
+
+    html, problem = fetch_html(url)
+    print(problem)
+    if problem:
+        return "No summary available. Ignore this and continue."
+
     main_content = extract_main_content(html, url)
 
     # print(html)
-    # print(main_content)
-    # print("\n\n")
+    print(main_content[:4096])
+    print("\n\n")
     
     # Prepare the chat history
     chat_history = [
@@ -113,7 +123,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
 
 if __name__ == "__main__":
     # Example usage
-    test_url = "https://github.com/vadimen/llm-function-calling"
+    test_url = "https://thechinaacademy.org/interview-with-deepseek-founder-were-done-following-its-time-to-lead/"
 
     try:
         summary = generate_summary(test_url, word_count=200)
