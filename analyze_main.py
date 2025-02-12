@@ -15,7 +15,7 @@ from thread_analysis_functions import (
 from try_html_summary import generate_summary
 
 
-def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone):
+def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external):
     """
     Synchronous function that:
       1. Performs preliminary steps sequentially.
@@ -60,11 +60,12 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
     # --- Image and link analysis ---
     image_links = original_post.get("image_link", [])
     extra_links = original_post.get("extra_content_link", [])
-    image_responses, link_summaries = process_media_content(image_links, extra_links)
-    print("-----------------------------------")
-    print(image_responses)
-    print(link_summaries)
-    print("-----------------------------------")
+    # print(image_links)
+    # print(extra_links)
+    image_responses, link_summaries = process_media_content(image_links, extra_links, analyze_image, search_external)
+    # print("-----------------------------------")
+    # print(image_responses)
+    # print(link_summaries)
     
     media_analysis = ""
     
@@ -79,7 +80,7 @@ def analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone
             media_analysis += f"\nLink {idx} summary: {summary}"
     
     if media_analysis:
-        original_post["body"] = media_analysis
+        original_post["body"] += "\n" + media_analysis
     print("-----------------------------------")
     print("\n")
     print(original_post["body"])
@@ -129,13 +130,13 @@ def deep_analysis_of_thread(all_data):
 
     return (a,b)
 
-def process_media_content(image_links, extra_content_links=None):
+def process_media_content(image_links, extra_content_links, analyze_image=True, search_external=True):
     """Process images and extra content links concurrently and return aggregated responses"""
     async def run_media_api_calls(img_links, content_links):
         tasks = []
         
         # Add image analysis tasks
-        if img_links:
+        if img_links and analyze_image:
             for link in img_links:
                 chat_history_image = [{
                     "role": "user", 
@@ -147,7 +148,7 @@ def process_media_content(image_links, extra_content_links=None):
                 tasks.append(async_chat_completion(chat_history_image, is_image=True))
         
         # Add link summary tasks        
-        if content_links:
+        if content_links and search_external:
             for link in content_links:
                 tasks.append(asyncio.create_task(
                     generate_summary_async(link, word_count=200)

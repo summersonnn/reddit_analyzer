@@ -147,13 +147,6 @@ def home_page():
         )
         st.session_state.summary_length = summary_length
 
-        # Pre-ticked checkbox for "Explain like I'm 5" section
-        include_eli5 = st.checkbox(
-            "Include a Explain like I'm 5 section",
-            value=True,
-            key="include_eli5"
-        )
-
     with col4:
         # Dropdown for tone selection
         tone = st.selectbox(
@@ -162,6 +155,34 @@ def home_page():
             index=0,  # Default to "Normal"
             key="tone_selector"
         )
+
+    # Single small column for Advanced Settings
+    small_col = st.columns([0.25, 0.75])[0]  # Only get the first column
+    
+    with small_col:
+        # Advanced Settings section using expander with arrow icon
+        with st.expander("⚙️ Advanced"):
+            # Pre-ticked checkbox for "Explain like I'm 5" section
+            include_eli5 = st.checkbox(
+                "Include an Explain like I'm 5 section",
+                value=True,
+                key="include_eli5"
+            )
+            
+            # Checkbox for analyzing images in the main post
+            analyze_image = st.checkbox(
+                "Run image analysis on the main post", 
+                value=True,
+                key="analyze_image"
+            )
+
+            # Checkbox for searching external links
+            search_external = st.checkbox(
+                "Search external links", 
+                value=False,
+                key="search_external"
+            )
+
 
     st.markdown("---")  # Horizontal line for separation
 
@@ -180,7 +201,7 @@ def home_page():
 
             # Add loading state during analysis
             with st.spinner("Analyzing thread..."):
-                analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, include_eli5, tone)
+                analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external)
 
             # Store the results in session state  
             st.session_state.analysis_result = analysis_result

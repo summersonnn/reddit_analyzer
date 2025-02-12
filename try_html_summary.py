@@ -98,8 +98,8 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     main_content = extract_main_content(html, url)
 
     # print(html)
-    print(main_content[:4096])
-    print("\n\n")
+    # print(main_content[:4096])
+    # print("\n\n")
     
     # Prepare the chat history
     chat_history = [
@@ -123,7 +123,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
 
 if __name__ == "__main__":
     # Example usage
-    test_url = "https://thechinaacademy.org/interview-with-deepseek-founder-were-done-following-its-time-to-lead/"
+    test_url = "https://archive.md/MqZKQ"
 
     try:
         summary = generate_summary(test_url, word_count=200)
