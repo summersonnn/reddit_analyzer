@@ -1,15 +1,13 @@
-import sys
 from dotenv import load_dotenv
 import os
 import re
+import json
 
 import streamlit as st
+from st_files_connection import FilesConnection
 from analysis import analysis_page
+from cache_helpers import find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
 
-# Add parent directory to path to allow importing analyze_main
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from analyze_main import analyze_reddit_thread
 
 load_dotenv()
 REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
@@ -183,34 +181,76 @@ def home_page():
                 key="search_external"
             )
 
-
     st.markdown("---")  # Horizontal line for separation
 
-    # Analyze Button
     if st.button("Analyze", key="analyze_button"):
         if not url:
             st.warning("Please enter a Reddit thread URL.")
         elif not is_valid_url:
-            st.warning("Please enter a valid Reddit thread URL. The URL should be from reddit.com")
+            st.warning("Please enter a valid Reddit thread URL.")
         else:
-            # Store the URL, summary focus, and summary length in session state
             st.session_state.url = url
             st.session_state.summary_focus = summary_focus
             st.session_state.summary_length = summary_length
             st.session_state.tone = tone
 
-            # Add loading state during analysis
-            with st.spinner("Analyzing thread..."):
-                analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external)
+            with st.spinner("Checking for existing analysis..."):
+                conn = st.connection('s3', type=FilesConnection)
 
-            # Store the results in session state  
-            st.session_state.analysis_result = analysis_result
-            st.session_state.sum_for_5yo = sum_for_5yo
-            st.session_state.notable_comments = notable_comments
+                # Initialize variables to avoid UnboundLocalError
+                analysis_result = None
+                sum_for_5yo = None
+                notable_comments = None
 
-            # Navigate to the analysis page
-            st.session_state.page = "analysis"
-            st.rerun()
+                try:
+                    # Use a try-except block to handle potential file reading errors
+                    try:
+                        all_analyses = conn.read("reddit-links-bucket/analyses.csv", input_format="csv", ttl=0)
+                        print(f"Read {len(all_analyses)} existing analyses from cache.")
+                    except Exception as e:  # Catch broader exceptions during read
+                        print(f"Error reading existing analyses: {e}")
+                        all_analyses = None # Set to None so we perform new analysis
+
+                    # This will always return the best match possible. If full match, then that. If only big 4, that.
+                    best_match, match_index = find_best_match(all_analyses, url, summary_focus, summary_length, tone, image=analyze_image, external=search_external)
+
+                    if best_match is not None:
+                        best_match = best_match.to_dict()
+                        needs_new_analysis = analyze_needs(analyze_image, search_external, best_match)
+
+                        print("needs_new_analysis:", needs_new_analysis)
+                        
+                        if needs_new_analysis:
+                            print("home.py: Performing new analysis (cache was worse, so we'll add the better one).")
+                            analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                                conn, url, summary_focus, summary_length, tone, include_eli5,
+                                analyze_image, search_external, all_analyses)
+                        else:
+                            print("home.py: Using existing analysis.")
+                            analysis_result = best_match['analysis_result']
+                            notable_comments = json.loads(best_match['notable_comments'])
+                            sum_for_5yo = best_match.get('eli5_summary')
+
+                            if include_eli5 and not best_match['include_eli5']:
+                                print("home.py: Generating ELI5 summary (requested but not in cache).")
+                                sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone)
+                                update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo)
+                                st.success("Retrieved existing analysis and generated ELI5 summary!")
+                            else:
+                                st.success("Retrieved existing analysis!")
+                    else:
+                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(conn, url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, all_analyses)
+
+                except FileNotFoundError:
+                    print("No existing analyses file. Performing new analysis.")
+                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(conn, url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external)
+
+
+                st.session_state.analysis_result = analysis_result
+                st.session_state.sum_for_5yo = sum_for_5yo
+                st.session_state.notable_comments = notable_comments
+                st.session_state.page = "analysis"
+                st.rerun()
 
 # Main app logic
 def main():
@@ -225,6 +265,28 @@ def main():
 # Clear previous results when URL changes
 def on_url_change():
     st.session_state.pop("analysis_result", None)
+
+def analyze_needs(analyze_image, search_external, best_match):
+    """
+    Determines if a new analysis is needed and if it's a special "opposite" case.
+
+    Args:
+        analyze_image (bool): The current desired state for image analysis.
+        search_external (bool): The current desired state for external search.
+        best_match (dict): Dictionary containing cached analysis flags.
+
+    Returns:
+        tuple: (needs_new_analysis, is_special_case)
+               needs_new_analysis (bool): True if a new analysis is needed.
+               is_special_case (bool): True if it's the special "opposite" case.
+    """
+
+    # Check if analyze_image or search_external need updating
+    needs_new_analysis = (
+        (analyze_image and not best_match['analyze_image']) or 
+        (search_external and not best_match['search_external'])
+    )
+    return needs_new_analysis
 
 if __name__ == "__main__":
     main()

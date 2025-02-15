@@ -15,16 +15,20 @@ from thread_analysis_functions import (
 from try_html_summary import generate_summary
 
 
-def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external):
+def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, include_normal_summary=True):
     """
-    Synchronous function that:
-      1. Performs preliminary steps sequentially.
-      2. Runs individual image API calls concurrently and aggregates the responses.
-      3. Inserts the aggregated image analysis into original_post["body"].
-      4. Runs the normal text-based API calls (normal summary and optional ELI5) concurrently.
-      5. Continues processing synchronously after gathering the results.
+    Analyzes a Reddit thread.
+
+    Args:
+        url: Reddit thread URL.
+        summary_focus: Focus of the summary.
+        summary_length: Length of the summary.
+        tone: Tone of the summary.
+        include_eli5: Whether to include an ELI5 summary.
+        analyze_image: Whether to analyze images.
+        search_external: Whether to search external links.
+        include_normal_summary: Whether to include a normal summary (default: True).
     """
-    # --- Preliminary sequential work ---
     if summary_length == "Short":
         length_sentence = ("Your summary should be concise, ideally between 100 and 200 words, "
                            "depending on the original thread's length.")
@@ -37,7 +41,6 @@ def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5
     else:
         length_sentence = ""
 
-    # Assume prompts is defined globally (or passed in)
     tone_prompt = prompts[tone]['content'] if tone in prompts else ""
 
     system_message_normal_summary = {
@@ -52,71 +55,68 @@ def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5
                    " " + length_sentence
     }
 
-    # --- Fetch thread data ---
     json_response = fetch_json_response(url)
     title, original_post = return_OP(json_response)
     comments = return_comments(json_response)
 
-    # --- Image and link analysis ---
     image_links = original_post.get("image_link", [])
     extra_links = original_post.get("extra_content_link", [])
-    # print(image_links)
-    # print(extra_links)
     image_responses, link_summaries = process_media_content(image_links, extra_links, analyze_image, search_external)
-    # print("-----------------------------------")
-    # print(image_responses)
-    # print(link_summaries)
-    
+
     media_analysis = ""
-    
     if image_responses:
         media_analysis += f"\nThere are {len(image_responses)} image(s) in this post. Here are the analyses of these images:\n"
         for idx, resp in enumerate(image_responses, start=1):
             media_analysis += f"\nImage {idx} analysis: {resp}"
-            
     if link_summaries:
         media_analysis += f"\n\nThere are {len(link_summaries)} external link(s) in this post. Here are their summaries:\n"
         for idx, summary in enumerate(link_summaries, start=1):
             media_analysis += f"\nLink {idx} summary: {summary}"
-    
     if media_analysis:
         original_post["body"] += "\n" + media_analysis
-    print("-----------------------------------")
-    print("\n")
-    print(original_post["body"])
 
-    # --- Update all_data with the updated original_post ---
     all_data = {
         "title": title,
         "original_post": original_post,
-        "comments": comments  # list of dicts
+        "comments": comments
     }
 
-    # --- Prepare chat histories for text-based API calls ---
-    chat_history_normal = [
-        system_message_normal_summary,
-        {"role": "user", "content": json.dumps(all_data, indent=4)}
-    ]
+    # --- Prepare chat histories - based on include_normal_summary and include_eli5 ---
+    chat_history_normal = None
+    chat_history_eli5 = None
 
+    if include_normal_summary:
+        chat_history_normal = [
+            system_message_normal_summary,
+            {"role": "user", "content": json.dumps(all_data, indent=4)}
+        ]
     if include_eli5:
         chat_history_eli5 = [
             system_message_eli5,
             {"role": "user", "content": json.dumps(all_data, indent=4)}
         ]
-    else:
-        chat_history_eli5 = None
 
-    # --- Run text-based API calls (normal and ELI5) concurrently ---
     async def run_parallel_text_api_calls():
-        tasks = [async_chat_completion(chat_history_normal)]
-        if include_eli5 and chat_history_eli5:
+        tasks = []
+        if chat_history_normal:
+            tasks.append(async_chat_completion(chat_history_normal))
+        else:
+             tasks.append(asyncio.sleep(0, result=None))
+        if chat_history_eli5:
             tasks.append(async_chat_completion(chat_history_eli5))
         else:
             tasks.append(asyncio.sleep(0, result=None))
+
         results = await asyncio.gather(*tasks)
         return results
 
     result_normal, result_for_5yo = asyncio.run(run_parallel_text_api_calls())
+
+    result_normal = result_normal if result_normal is not None else ""  # Ensure string return
+    result_for_5yo = result_for_5yo if result_for_5yo is not None else None
+
+    best_comments, important_comments = deep_analysis_of_thread(all_data)
+    return result_normal, result_for_5yo, [best_comments, important_comments]
 
     # --- Further analysis (sequential) ---
     best_comments, important_comments = deep_analysis_of_thread(all_data)

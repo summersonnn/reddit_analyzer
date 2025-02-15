@@ -79,12 +79,12 @@ async def async_chat_completion(
         "temperature": temperature,
     }
 
-    start_time = time.time()
-    print("Start time of the async_chat_completion function: ", start_time)
+    # start_time = time.time()
+    # print("Start time of the async_chat_completion function: ", start_time)
     
     try:
         response = await client.chat.completions.create(**request_params)
-        print("Finish time of the async_chat_completion function: ", time.time())
+        # print("Finish time of the async_chat_completion function: ", time.time())
         return response.choices[0].message.content
     except Exception as e:
         raise
