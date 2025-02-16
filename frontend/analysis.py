@@ -13,7 +13,7 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
 
     # Display the  analysis result
     st.markdown("### 📝 Analysis Summary") 
-    st.markdown(f"<p style='font-size: 16px;'>{analysis_result}</p>", unsafe_allow_html=True)
+    st.markdown(analysis_result)
 
     # Horizontal line separator
     st.markdown("---")
@@ -21,7 +21,7 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
     # Display summary for 5-years old (conditional)
     if sum_for_5yo is not None:
         st.markdown("### 📝 ELI5")
-        st.markdown(f"<p style='font-size: 16px;'>{sum_for_5yo}</p>", unsafe_allow_html=True)
+        st.markdown(sum_for_5yo)
         # Horizontal line separator
         st.markdown("---")
 
