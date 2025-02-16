@@ -6,7 +6,8 @@ import json
 import streamlit as st
 from st_files_connection import FilesConnection
 from analysis import analysis_page
-from cache_helpers import find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
+from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
+from analyze_main import fetch_thread_data
 
 
 load_dotenv()
@@ -201,6 +202,7 @@ def home_page():
                 analysis_result = None
                 sum_for_5yo = None
                 notable_comments = None
+                all_thread_data = fetch_thread_data(url)
 
                 try:
                     # Use a try-except block to handle potential file reading errors
@@ -211,40 +213,59 @@ def home_page():
                         print(f"Error reading existing analyses: {e}")
                         all_analyses = None # Set to None so we perform new analysis
 
-                    # This will always return the best match possible. If full match, then that. If only big 4, that.
-                    best_match, match_index = find_best_match(all_analyses, url, summary_focus, summary_length, tone, image=analyze_image, external=search_external)
+                    # 1. Pre-filter on core params (big 4)
+                    filtered_analyses, core_indices = pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone)
 
-                    if best_match is not None:
-                        best_match = best_match.to_dict()
-                        needs_new_analysis = analyze_needs(analyze_image, search_external, best_match)
-
-                        print("needs_new_analysis:", needs_new_analysis)
-                        
-                        if needs_new_analysis:
-                            print("home.py: Performing new analysis (cache was worse, so we'll add the better one).")
-                            analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                                conn, url, summary_focus, summary_length, tone, include_eli5,
-                                analyze_image, search_external, all_analyses)
-                        else:
-                            print("home.py: Using existing analysis.")
-                            analysis_result = best_match['analysis_result']
-                            notable_comments = json.loads(best_match['notable_comments'])
-                            sum_for_5yo = best_match.get('eli5_summary')
-
-                            if include_eli5 and not best_match['include_eli5']:
-                                print("home.py: Generating ELI5 summary (requested but not in cache).")
-                                sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone)
-                                update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo)
-                                st.success("Retrieved existing analysis and generated ELI5 summary!")
-                            else:
-                                st.success("Retrieved existing analysis!")
+                    if filtered_analyses.empty:
+                        # No matches for core params - perform new analysis and append to cache
+                        print("home.py: No matches for core parameters. Performing new analysis to append to cache.")
+                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                            conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                            analyze_image, search_external, all_analyses)
                     else:
-                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(conn, url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, all_analyses)
+                        # 2. Filter by image/external parameters
+                        param_filtered, param_indices = filter_by_params(filtered_analyses, core_indices, image=analyze_image, external=search_external)
+                        
+                        if param_filtered.empty:
+                            # Core params matched but image/external didn't - replace cache entry
+                            print("home.py: Core parameters matched but image/external didn't. Performing new analysis to replace cache entry.")
+                            cache_index = core_indices[0]  # Get first match's index from main cache
+                            analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                                conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                                analyze_image, search_external, all_analyses, cache_index)
+                        else:
+                            # 3. Find best match within tolerances
+                            best_match, cache_index = find_best_match(param_filtered, param_indices, all_thread_data)
+                            
+                            if best_match is not None:
+                                # Good match found within tolerances - use cache
+                                print("home.py: Using existing analysis from cache.")
+                                # Convert named tuple to dictionary with _asdict()
+                                best_match_dict = best_match._asdict()
+                                analysis_result = best_match_dict['analysis_result']
+                                notable_comments = json.loads(best_match_dict['notable_comments'])
+                                sum_for_5yo = best_match_dict.get('eli5_summary')
+
+                                if include_eli5 and not best_match_dict.get('include_eli5'):
+                                    print("home.py: Generating ELI5 summary (requested but not in cache).")
+                                    sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_image, search_external)
+                                    update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo)
+                                    st.success("Retrieved existing analysis and generated ELI5 summary!")
+                                else:
+                                    st.success("Retrieved existing analysis!")
+                            else:
+                                # Matches exist but exceed tolerance - replace cache entry
+                                print("home.py: Matches found but exceed tolerance. Performing new analysis to replace cache entry.") 
+                                cache_index = param_indices[0]  # Get first match's index from main cache
+                                analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                                    conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                                    analyze_image, search_external, all_analyses, cache_index)
 
                 except FileNotFoundError:
                     print("No existing analyses file. Performing new analysis.")
-                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(conn, url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external)
-
+                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                        conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                        analyze_image, search_external, all_analyses)
 
                 st.session_state.analysis_result = analysis_result
                 st.session_state.sum_for_5yo = sum_for_5yo
@@ -266,27 +287,6 @@ def main():
 def on_url_change():
     st.session_state.pop("analysis_result", None)
 
-def analyze_needs(analyze_image, search_external, best_match):
-    """
-    Determines if a new analysis is needed and if it's a special "opposite" case.
-
-    Args:
-        analyze_image (bool): The current desired state for image analysis.
-        search_external (bool): The current desired state for external search.
-        best_match (dict): Dictionary containing cached analysis flags.
-
-    Returns:
-        tuple: (needs_new_analysis, is_special_case)
-               needs_new_analysis (bool): True if a new analysis is needed.
-               is_special_case (bool): True if it's the special "opposite" case.
-    """
-
-    # Check if analyze_image or search_external need updating
-    needs_new_analysis = (
-        (analyze_image and not best_match['analyze_image']) or 
-        (search_external and not best_match['search_external'])
-    )
-    return needs_new_analysis
 
 if __name__ == "__main__":
     main()

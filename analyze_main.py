@@ -27,12 +27,12 @@ def fetch_thread_data(url: str) -> Dict:
     return all_data
 
 
-def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, include_normal_summary=True):
+def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, include_normal_summary=True):
     """
     Analyzes a Reddit thread.
 
     Args:
-        url: Reddit thread URL.
+        all_data: Content of the Reddit thread.
         summary_focus: Focus of the summary.
         summary_length: Length of the summary.
         tone: Tone of the summary.
@@ -67,13 +67,9 @@ def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5
                    " " + length_sentence
     }
 
-    # json_response = fetch_json_response(url)
-    # title, original_post = return_OP(json_response)
-    # comments = return_comments(json_response)
-    all_data = fetch_thread_data(url)
-
-    image_links = all_data['original_post'].get("image_link", [])
-    extra_links = all_data['original_post'].get("extra_content_link", [])
+    OP = all_data['original_post']
+    image_links = OP.get("image_link", [])
+    extra_links = OP.get("extra_content_link", [])
     image_responses, link_summaries = process_media_content(image_links, extra_links, analyze_image, search_external)
 
     media_analysis = ""
@@ -87,12 +83,6 @@ def analyze_reddit_thread(url, summary_focus, summary_length, tone, include_eli5
             media_analysis += f"\nLink {idx} summary: {summary}"
     if media_analysis:
         original_post["body"] += "\n" + media_analysis
-
-    # all_data = {
-    #     "title": title,
-    #     "original_post": original_post,
-    #     "comments": comments
-    # }
 
     # --- Prepare chat histories - based on include_normal_summary and include_eli5 ---
     chat_history_normal = None

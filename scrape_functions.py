@@ -329,3 +329,4 @@ def filter_links(links):
         link for link in links
         if "x.com" not in link.lower() and ".pdf" not in link.lower()
     ]
+    
