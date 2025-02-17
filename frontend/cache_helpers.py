@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 # # Add parent directory to path to allow importing analyze_main
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analyze_main import analyze_reddit_thread
 
 def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone):
