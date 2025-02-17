@@ -17,6 +17,7 @@ from try_html_summary import generate_summary
 def fetch_thread_data(url: str) -> Dict:
     json_response = fetch_json_response(url)
     title, original_post = return_OP(json_response)
+    print(title)
     comments = return_comments(json_response)
 
     all_data = {
