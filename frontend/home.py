@@ -8,11 +8,6 @@ from st_files_connection import FilesConnection
 from analysis import analysis_page
 from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
 
-# # Add parent directory to path to allow importing analyze_main
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analyze_main import analyze_reddit_thread
-
-
 load_dotenv()
 REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
 
