@@ -139,7 +139,8 @@ def return_OP(json_data):
         return (title, content_dict)
 
     except (KeyError, IndexError, TypeError) as e:
-        raise ValueError
+        # raise ValueError
+        print(e)
         return (None, None)
 
 def return_comments(json_data):
