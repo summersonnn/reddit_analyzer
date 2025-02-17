@@ -87,14 +87,26 @@ def return_OP(json_data):
     """
     try:
         # Navigate through the JSON structure (same as before)
+        if not isinstance(json_data, list) or not json_data: # check if json_data is a list and not empty
+            return (None, None)
+
         first_element = json_data[0]
+        if not isinstance(first_element, dict) or 'data' not in first_element: # check if first_element is a dict and has 'data' key
+            return (None, None)
+
+        if not isinstance(first_element['data'], dict) or 'children' not in first_element['data'] or not isinstance(first_element['data']['children'], list) or not first_element['data']['children']: # check nested structure
+            return (None, None)
+
         first_child = first_element['data']['children'][0]
+        if not isinstance(first_child, dict) or 'data' not in first_child: # check if first_child is dict and has data key
+            return (None, None)
         data = first_child['data']
 
         # Extract title and content (same as before)
         title = data.get('title', '')
         content = data.get('selftext', '')
 
+        url = ''
         if "reddit.com" in data.get('url', '') or "v.redd.it" in data.get('url', ''):
             url = data.get('url', '')
         else:
@@ -105,7 +117,7 @@ def return_OP(json_data):
             'url': url, # thread link
             'author': data.get('author', ''),
             'score': data.get('score', 0),
-            'ef_score': data.get('score', 0)/2,
+            'ef_score': data.get('score', 0)/2 if isinstance(data.get('score', 0), (int, float)) else 0, # safe division
             'body': content,
             'type': data.get('link_flair_text', ''),
             'image_link': [],
@@ -115,24 +127,27 @@ def return_OP(json_data):
         # Extract image links from gallery posts
         if data.get('is_gallery', False):
             media_metadata = data.get('media_metadata', {})
-            for img_id, img_info in media_metadata.items():
-                if 's' in img_info:  # 's' contains source image data
-                    # Get URL and fix HTML-encoded ampersands
-                    image_url = img_info['s']['u'].replace('&amp;', '&')
-                    content_dict['image_link'].append(image_url)
+            if isinstance(media_metadata, dict): # check if media_metadata is a dict before iterating
+                for img_id, img_info in media_metadata.items():
+                    if isinstance(img_info, dict) and 's' in img_info and isinstance(img_info.get('s'), dict) and 'u' in img_info['s']:  # check nested dict structure
+                        # Get URL and fix HTML-encoded ampersands
+                        image_url = img_info['s']['u'].replace('&', '&')
+                        content_dict['image_link'].append(image_url)
         else:
             # Fallback to URL if it's a direct image link
-            url = data.get('url_overridden_by_dest', False)
-            if url:
-                if any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
-                    content_dict['image_link'].append(url)
-                else:
+            url_overridden_by_dest = data.get('url_overridden_by_dest', False)
+            if url_overridden_by_dest:
+                if isinstance(url_overridden_by_dest, str) and any(url_overridden_by_dest.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
+                    content_dict['image_link'].append(url_overridden_by_dest)
+                elif isinstance(url_overridden_by_dest, str): # only append if url_overridden_by_dest is a string
                     # This is for non-image content (e.g., articles)
-                    content_dict['extra_content_link'].append(url)
+                    content_dict['extra_content_link'].append(url_overridden_by_dest)
 
         new_content, image_links = extract_links_from_selftext(content)
-        content_dict["extra_content_link"] += new_content
-        content_dict["image_link"] += image_links
+        if isinstance(new_content, list): # check if new_content is list before extending
+            content_dict["extra_content_link"] += new_content
+        if isinstance(image_links, list): # check if image_links is list before extending
+            content_dict["image_link"] += image_links
         content_dict["extra_content_link"] = filter_links(content_dict["extra_content_link"])
 
         # print("Content dict: ", content_dict)
