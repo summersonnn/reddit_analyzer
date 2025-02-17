@@ -83,7 +83,7 @@ def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include
         for idx, summary in enumerate(link_summaries, start=1):
             media_analysis += f"\nLink {idx} summary: {summary}"
     if media_analysis:
-        original_post["body"] += "\n" + media_analysis
+        OP["body"] += "\n" + media_analysis
 
     # --- Prepare chat histories - based on include_normal_summary and include_eli5 ---
     chat_history_normal = None
