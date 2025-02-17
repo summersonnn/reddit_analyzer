@@ -8,22 +8,9 @@ from st_files_connection import FilesConnection
 from analysis import analysis_page
 from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
 
-try:
-    from analyze_main import fetch_thread_data
-except:
-    import importlib.util
-    import os
-    
-    # Get the absolute path to analyze_main.py
-    module_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'analyze_main.py')
-    
-    # Load the module dynamically
-    spec = importlib.util.spec_from_file_location("analyze_main", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    
-    # Get the function
-    fetch_thread_data = module.fetch_thread_data
+# # Add parent directory to path to allow importing analyze_main
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from analyze_main import analyze_reddit_thread
 
 
 load_dotenv()
