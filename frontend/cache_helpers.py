@@ -2,7 +2,7 @@ import sys
 import os
 import pandas as pd
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # # Add parent directory to path to allow importing analyze_main
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -107,7 +107,7 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     # Create new analysis entry
     new_analysis = {
         'url': all_thread_data['original_post']['url'],
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'summary_focus': summary_focus,
         'summary_length': summary_length,
         'tone': tone,

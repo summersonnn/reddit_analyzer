@@ -3,6 +3,20 @@ import plotly.express as px
 import pandas as pd
 
 def analysis_page(analysis_result, sum_for_5yo, notable_comments):
+    # Display cache information if available
+    if 'cache_time' in st.session_state and st.session_state.cache_time is not None:
+        st.markdown(
+            f"""
+            <div style="background-color:#e6ffe6;padding:10px;border-radius:5px;">
+                <p style="color:black;font-size:14px;">
+                    <strong>Analysis fetched from the cache.</strong> 
+                    Time when the analysis was made: {st.session_state.cache_time}
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     # Header
     st.markdown("""
         <div class="main-header">
