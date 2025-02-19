@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 # # Add parent directory to path to allow importing analyze_main
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analyze_main import analyze_reddit_thread
+from analyze_main import analyze_reddit_thread, fetch_thread_data
 
 def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone):
     """
@@ -15,8 +15,13 @@ def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_le
     Returns:
     Tuple of (Filtered DataFrame of potential matches, list of indices in original DataFrame)
     """
+    if all_thread_data['original_post']:
+        url = all_thread_data['original_post']['url']
+    else:
+        url = all_thread_data['url']
+
     filtered_analyses = all_analyses[
-        (all_analyses['url'] == all_thread_data['original_post']['url']) &
+        (all_analyses['url'] == url) &
         (all_analyses['summary_focus'] == summary_focus) &
         (all_analyses['summary_length'] == summary_length) &
         (all_analyses['tone'] == tone)
@@ -72,8 +77,8 @@ def find_best_match(param_filtered, param_indices, all_thread_data):
     # Check tolerances
     for i, row in enumerate(param_filtered.itertuples()):
         if check_all_tolerances(
-            comment_count, total_score, total_ef_score,
-            row.number_of_comments, row.total_score, row.total_ef_score
+            comment_count, total_score,
+            row.number_of_comments, row.total_score
         ):
             return row, param_indices[i]
             
@@ -96,6 +101,12 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     """
     Performs a new analysis and stores it in the cache.
     """
+    # Check fetching one last time
+    if not all_thread_data['original_post']:
+        all_thread_data = fetch_thread_data(all_thread_data['url'])
+        if all_thread_data['original_post'] is None:
+            return "Failed to fetch thread data. Please try again later.", None, None
+
     # Perform the analysis
     analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
         all_thread_data, summary_focus, summary_length, tone,
@@ -195,26 +206,21 @@ def count_all_comments(comments):
 
     return count, total_score, total_ef_score
 
-def check_all_tolerances(current_count, current_score, current_ef_score,
-                         cached_count, cached_score, cached_ef_score,
-                         tolerance_percentage=0.10):
+def check_all_tolerances(current_count, current_score,
+                         cached_count, cached_score,
+                         tp_comment=0.10, tp_score=0.30): # tp being tolerance percentage
     """
     Checks tolerances for count, score, and ef_score.  All inputs are now numbers.
     """
+    # Comment tolerance check
+    lower_bound_comment = cached_count * (1 - tp_comment)
+    upper_bound_comment = cached_count * (1 + tp_comment)
+    comment_passed = lower_bound_comment <= current_count <= upper_bound_comment
 
-    def check_single_tolerance(current_value, cached_value):
-        # Handle potential NaN values in cached data.
-        if pd.isna(cached_value):
-            return False  # Or return True, if you want to ignore missing values
-        
-        # No need to check for series, cached_value is definitely a number/NaN here.
-        if cached_value == 0:
-            return current_value == 0
-        lower_bound = cached_value * (1 - tolerance_percentage)
-        upper_bound = cached_value * (1 + tolerance_percentage)
-        return lower_bound <= current_value <= upper_bound
+    # Score tolerance check
+    lower_bound_score = cached_score * (1 - tp_score)
+    upper_bound_score = cached_score * (1 + tp_score)
+    score_passed = lower_bound_score <= current_score <= upper_bound_score
 
-    return (check_single_tolerance(current_count, cached_count) and
-            check_single_tolerance(current_score, cached_score) and
-            check_single_tolerance(current_ef_score, cached_ef_score))
+    return comment_passed and score_passed
 

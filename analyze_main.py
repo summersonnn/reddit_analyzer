@@ -1,8 +1,12 @@
-from llm_interact import chat_completion, async_chat_completion
-from config import prompts
-from typing import List, Dict
+import os
+import random
+import time
 import json
 import asyncio
+from typing import List, Dict
+
+from config import prompts
+from llm_interact import chat_completion, async_chat_completion
 from scrape_functions import (
     fetch_json_response,
     return_OP,
@@ -15,15 +19,44 @@ from thread_analysis_functions import (
 from try_html_summary import generate_summary
 
 def fetch_thread_data(url: str) -> Dict:
-    json_response = fetch_json_response(url)
-    title, original_post = return_OP(json_response)
-    print(title)
-    comments = return_comments(json_response)
+    max_retries = 2
+    USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
+    for attempt in range(max_retries):
+        try:
+            use_proxy = not USE_LOCAL_LLM or (USE_LOCAL_LLM and attempt == max_retries - 1)
+            if USE_LOCAL_LLM and attempt == max_retries - 1:
+                print("Final attempt - trying with proxy...")
+
+            json_response = fetch_json_response(url, use_proxy=use_proxy)
+
+            # Check if the response is an error message
+            if isinstance(json_response, str):
+                raise Exception(json_response)
+
+            title, original_post = return_OP(json_response)
+            print(title)
+            comments = return_comments(json_response)
+
+            all_data = {
+                "title": title,
+                "original_post": original_post,
+                "comments": comments,
+                'url': None
+            }
+            return all_data
+
+        except Exception as e:
+            print(f"Error on attempt {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                delay = random.randint(1, 15)
+                time.sleep(delay)
+    
     all_data = {
-        "title": title,
-        "original_post": original_post,
-        "comments": comments
+        "title": None,
+        "original_post": None,
+        "comments": None,
+        "url:": url
     }
     return all_data
 

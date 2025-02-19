@@ -1,76 +1,36 @@
 import requests
-import os
-import time
-import random
 import re
+import os
 
-def fetch_json_response(url, max_retries=4):
+def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
     Fetches the JSON response from the given URL using the requests package.
-    Implements a retry mechanism with a random delay if the response is not genuine.
-    Uses proxy by default unless USE_LOCAL_LLM is True.
+    Uses proxy if specified.
     """
-    try:
-        # Append .json to the URL if it's not already present
-        if not url.endswith('.json'):
-            url += '.json'
+    if not url.endswith('.json'):
+        url += '.json'
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    }
+
+    proxies = None
+    if use_proxy:
+        http_proxy = os.getenv("PROXY_HTTP")
+        https_proxy = os.getenv("PROXY_HTTPS")
+        proxies = {
+            'http': http_proxy,
+            'https': https_proxy
         }
-        USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
-        for attempt in range(max_retries):
-            try:
-                # Determine if proxy should be used
-                # Use proxy if not using local LLM, or if using local LLM and it's the last attempt
-                use_proxy = not USE_LOCAL_LLM or (USE_LOCAL_LLM and attempt == max_retries - 1)
-                
-                if use_proxy:
-                    if USE_LOCAL_LLM and attempt == max_retries - 1:
-                        print("Final attempt - trying with proxy...")
-                    http_proxy = os.getenv("PROXY_HTTP") 
-                    https_proxy = os.getenv("PROXY_HTTPS")
-                    proxies = {
-                        'http': http_proxy,
-                        'https': https_proxy
-                    }
-                    response = requests.get(url, headers=headers, proxies=proxies)
-                else:
-                    response = requests.get(url, headers=headers)
-
-                # Raise an exception if the request was unsuccessful
-                response.raise_for_status()
-
-                # Convert the response content to a string
-                response_text = response.text
-
-                # Check if the response contains the expected strings
-                if all(keyword in response_text for keyword in ["author", "replies", "depth"]):
-                    # Parse the JSON response only if it's genuine
-                    json_data = response.json()
-                    return json_data  # type: list
-                else:
-                    print(response_text)
-                    print("Unable to fetch a genuine response...")
-                    delay = random.randint(1, 15)
-                    time.sleep(delay)
-                    continue
-
-            except requests.exceptions.RequestException as e:
-                # If using proxy, don't retry after a proxy failure
-                if use_proxy:
-                    return f"Error: Proxy attempt failed with exception: {e}"
-                # Only retry on exception if we're using local LLM and not yet at the proxy attempt
-                delay = random.randint(1, 15)
-                time.sleep(delay)
-                continue
-
-        # If all retries fail, return an error message
-        return "Error: Max retries reached. Unable to fetch a genuine JSON response."
-
+    try:
+        response = requests.get(url, headers=headers, proxies=proxies)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return f"Error: Request failed with exception: {e}"
     except Exception as e:
-        return f"Error fetching the JSON response: {e}"
+        return f"Error fetching JSON response: {e}"
 
 
 def return_OP(json_data):
