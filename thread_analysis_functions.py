@@ -42,43 +42,43 @@ def get_top_three_comments_by_ef_score(comments, limit=3):
     return result
 
 
-# A comment is imported if its ef_score is bigger than its parent's ef_score
-# When you find such comment pairs (parent and child), put them in a list as a tuple.
-# You must order the list by the difference between the child's ef_score and the parent's ef_score in descending order.
 def get_important_comments(comments, limit=3):
     """
     Identifies important comment pairs from the comment hierarchy.
-
-    A comment pair (parent, child) is considered important if the child's ef_score
-    is greater than the parent's ef_score, and the child's score is not equal to 1.
-    The function recursively traverses the comment tree to collect such pairs.
-    When a pair is found, the 'replies' key is removed from both the parent and child
-    comments before adding them to the list. Finally, the pairs are sorted in descending
-    order based on the difference between the child's ef_score and the parent's ef_score.
-
+    Modified to also include the parent's parent (grandparent) information when available.
+    
     Args:
-        comments (list): A list of comment dictionaries. Each dictionary represents a comment
-                         and includes keys such as 'author', 'score', 'ef_score', 'body', 'depth',
-                         and 'replies' (which is a list of sub-comments).
-
+        comments (list): A list of comment dictionaries representing the comment hierarchy
+        limit (int): Maximum number of pairs to return
+        
     Returns:
-        list: A list of tuples, where each tuple contains a parent comment and its child comment
-              (both without the 'replies' key), sorted by the difference
-              (child's ef_score - parent's ef_score) in descending order.
+        list: A list of tuples (parent, child), where parent includes its own parent information
+        if available, sorted by ef_score difference in descending order.
     """
     important_pairs = []
-
-    def traverse(parent):
+    
+    def traverse(parent, grandparent=None):
         for child in parent.get('replies', []):
             if child.get('ef_score', 0) > parent.get('ef_score', 0) and child.get('score', 0) != 1:
+                # Create parent copy without replies but with its parent info
                 parent_no_replies = {k: v for k, v in parent.items() if k != "replies"}
+                if grandparent:
+                    grandparent_no_replies = {k: v for k, v in grandparent.items() if k != "replies"}
+                    parent_no_replies['parent_comment'] = grandparent_no_replies
+                
+                # Create child copy without replies
                 child_no_replies = {k: v for k, v in child.items() if k != "replies"}
+                
                 important_pairs.append((parent_no_replies, child_no_replies))
-            traverse(child)
+            
+            # Continue traversing with current child as parent
+            traverse(child, parent)
 
+    # Start traversal from each root comment
     for root_comment in comments:
         traverse(root_comment)
 
+    # Sort by ef_score difference
     important_pairs.sort(key=lambda pair: pair[1].get('ef_score', 0) - pair[0].get('ef_score', 0), reverse=True)
     return important_pairs[:limit]
 
