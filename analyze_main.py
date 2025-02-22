@@ -170,8 +170,7 @@ def deep_analysis_of_thread(all_data):
 def process_media_content(image_links, extra_content_links, analyze_image=True, search_external=True):
     """Process images and extra content links concurrently and return aggregated responses"""
     async def run_media_api_calls(img_links, content_links):
-        tasks = []
-        
+        tasks = []      
         # Add image analysis tasks
         if img_links and analyze_image:
             for link in img_links:
@@ -184,7 +183,7 @@ def process_media_content(image_links, extra_content_links, analyze_image=True, 
                 }]
                 tasks.append(async_chat_completion(chat_history_image, is_image=True))
         
-        # Add link summary tasks        
+        # Add link summary tasks  
         if content_links and search_external:
             for link in content_links:
                 tasks.append(asyncio.create_task(
@@ -210,12 +209,12 @@ def process_media_content(image_links, extra_content_links, analyze_image=True, 
     return image_responses, link_summaries
 
 async def generate_summary_async(url: str, word_count: int = 200) -> str:
-    """Async wrapper around generate_summary"""
     try:
-        return generate_summary(url, word_count)
+        return await asyncio.to_thread(generate_summary, url, word_count)
     except Exception as e:
         print(f"Error generating summary for {url}: {e}")
         return f"Failed to generate summary: {str(e)}"
+
 
 
 

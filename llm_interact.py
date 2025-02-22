@@ -63,8 +63,10 @@ async def async_chat_completion(
     # Choose the appropriate model based on whether it's an image request or not
     if not is_image:
         model = os.getenv("LOCAL_MODEL_NAME" if is_local else "CLOUD_MODEL_NAME")
+        # print("Not an image. Time: ", time.time())
     else:
         model = os.getenv("LOCAL_VLM_NAME" if is_local else "CLOUD_VLM_NAME")
+        # print("Image. Time: ", time.time())
     
     # Create the asynchronous OpenAI client
     client = AsyncOpenAI(

@@ -85,13 +85,13 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     Returns:
     *   A summary string.
     """
+    # print("Time at the start of the generate_summary: ", time.time())
 
     # Check for unsupported URLs
     if "x.com" in url or url.endswith(".pdf"):
         return "No summary available. Ignore this and continue."
 
     html, problem = fetch_html(url)
-    print(problem)
     if problem:
         return "No summary available. Ignore this and continue."
 
@@ -107,7 +107,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
             "You are a focused web content summarization assistant. "
             "Your goal is to extract and summarize the main theme of a web page. "
             "For GitHub repositories, prioritize summarizing the README file. "
-            "Ignore any error messages or unrelated content that might be displayed alongside the main content. "
+            "Ignore any error messages or unrelated content that might be displayed alongside the main content such as navbar text, about us information etc. "
             "Be concise, clear, and structured in your summaries, ensuring that key information is retained while filtering out noise."
         )},
         {"role": "user", "content": (
@@ -119,11 +119,12 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     
     # Call the chat_completion function
     summary = chat_completion(chat_history, temperature=0.2)
+    # print("Time at the end of the generate_summary: ", time.time())
     return summary
 
 if __name__ == "__main__":
     # Example usage
-    test_url = "https://archive.md/MqZKQ"
+    test_url = "https://www.anthropic.com/research/building-effective-agents"
 
     try:
         summary = generate_summary(test_url, word_count=200)

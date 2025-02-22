@@ -291,18 +291,43 @@ def extract_links_from_selftext(text):
     return extra_content_links, image_links
 
 # can't scrape x or pdf content now. look at this in the future.
+# also removes duplicate links (hyperlinks) that might be present in the selftext.
 def filter_links(links):
     """
-    Removes links that contain 'x.com' or '.pdf' (case-insensitive).
+    Removes links that contain 'x.com' or '.pdf' (case-insensitive) and drops duplicate links.
 
     Parameters:
         links (list of str): The list of URLs to be filtered.
 
     Returns:
-        list of str: A new list with the unwanted links removed.
+        list of str: A new list with the unwanted links removed and duplicates dropped.
     """
-    return [
-        link for link in links
-        if "x.com" not in link.lower() and ".pdf" not in link.lower()
-    ]
+    filtered = []
+    seen = set()
+    
+    for link in links:
+        # Keep the original filtering criteria
+        if "x.com" in link.lower() or ".pdf" in link.lower():
+            continue
+
+        # If link appears as a markdown link with duplicate URL parts, extract only one copy.
+        # For example: "https://example.com/path](https://example.com/path"
+        if "](" in link:
+            parts = link.split("](")
+            if len(parts) == 2:
+                first = parts[0]
+                second = parts[1].rstrip(")")  # Remove any trailing ')'
+                # If both parts are the same, use just one of them.
+                if first == second:
+                    link = first
+                else:
+                    # In case they differ, choose the URL part from inside the parentheses.
+                    link = second
+
+        # Drop duplicate URLs that might be present in the list.
+        if link not in seen:
+            seen.add(link)
+            filtered.append(link)
+    
+    return filtered
     
