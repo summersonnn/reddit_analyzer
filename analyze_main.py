@@ -6,7 +6,7 @@ import asyncio
 from typing import List, Dict
 
 from config import prompts
-from llm_interact import chat_completion, async_chat_completion
+from llm_interact import async_chat_completion
 from scrape_functions import (
     fetch_json_response,
     return_OP,
