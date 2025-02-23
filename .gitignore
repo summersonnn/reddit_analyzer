@@ -7,7 +7,9 @@ __pycache__/
 *.so
 
 # Streamlit secrets
-frontend/.streamlit/secrets.toml
+.streamlit/secrets.toml
+.webui_secret_key
+
 
 # Distribution / packaging
 .Python
