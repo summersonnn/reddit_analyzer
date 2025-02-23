@@ -278,9 +278,12 @@ def home_page():
 
             except FileNotFoundError:
                 add_status("Cache is not accessible. Performing new analysis...", "🆕")
+                raise FileNotFoundError("Cache file not found. Please check if the cache file exists and is accessible.")
                 analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
                     conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
                     analyze_image, search_external, max_comments, all_analyses)
+            except:
+                raise Exception("An error occurred while reading the cache file. Please try again later.")
 
             # Update session state
             st.session_state.analysis_result = analysis_result
@@ -307,23 +310,9 @@ def main():
 
     except Exception as e:
         # 1. Log the error (VERY IMPORTANT!)
-        st.error("An unexpected error occurred.  Please try again later.")  # User-friendly message
+        st.error("An unexpected error occurred.  Please try again later. ")  # User-friendly message
         traceback.print_exc()  # Log the FULL traceback to console (or file)
-        #  Consider using a proper logging library (e.g., `logging`)
-        #  for production.  Send errors to a service like Sentry, LogRocket, etc.
-
-        # 2.  DO NOT display `e` or traceback to the user.
-        #     (This prevents code exposure)
-
-        # 3. Optionally, you can display a generic, user-friendly
-        #    error message.  But keep it simple and don't reveal details.
-
-        # 4.  You might want to reset the session state here to avoid
-        #     the app being in a broken state.
-        # st.session_state.clear()  # CAREFUL with this, as it clears everything
-
-        # 5. Stop further execution.  Essential to prevent the
-        #    default Streamlit error handler from showing the code.
+        # Stop further execution.  Essential to prevent the default Streamlit error handler from showing the code.
         st.stop()
 
 # Clear previous results when URL changes (keep this, but outside the try block)
