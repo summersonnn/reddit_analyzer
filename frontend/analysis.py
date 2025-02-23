@@ -44,7 +44,7 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
 
     # Initialize session state for button toggling if not exists
     if 'active_button' not in st.session_state:
-        st.session_state.active_button = None
+        st.session_state.active_button = 0  # Open "Best Comments" by default
 
     # Updated CSS for green buttons
     st.markdown(

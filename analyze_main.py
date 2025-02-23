@@ -19,7 +19,7 @@ from thread_analysis_functions import (
 from try_html_summary import generate_summary
 
 def fetch_thread_data(url: str) -> Dict:
-    max_retries = 2
+    max_retries = 3
     USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
 
     for attempt in range(max_retries):

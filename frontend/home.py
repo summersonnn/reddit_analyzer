@@ -140,7 +140,7 @@ def home_page():
     with col3:
         # Dropdown for summary length
         summary_length = st.selectbox(
-            "Summary Length (proportional to original thread's length):",
+            "Summary Length:",
             ["Short", "Medium", "Long"],
             index=1 # Default to "Medium"
         )
@@ -150,8 +150,8 @@ def home_page():
         # Dropdown for tone selection
         tone = st.selectbox(
             "Summary Tone:",
-            ["Teacher", "Pompous", "Foulmouthed", "Clickbaiter_Youtuber"],
-            index=0,  # Default to "Normal"
+            ["Teacher", "Foulmouthed", "Cut the Bullshit", "Clickbaiter Youtuber", "Chill Bro", "Valley Girl", "Motivational Speaker", "Pirate", "Time Traveler", "Zen Master"],
+            index=0,  # Default to "Teacher"
             key="tone_selector"
         )
 
@@ -163,8 +163,8 @@ def home_page():
         with st.expander("⚙️ Advanced"):
             # Pre-ticked checkbox for "Explain like I'm 5" section
             include_eli5 = st.checkbox(
-                "Include an Explain like I'm 5 section",
-                value=True,
+                "Include an 'Explain like I'm 5' section",
+                value=False,
                 key="include_eli5"
             )
 
