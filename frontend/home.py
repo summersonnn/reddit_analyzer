@@ -182,6 +182,14 @@ def home_page():
                 key="search_external"
             )
 
+            # Maximum number of important comments selection
+            max_comments = st.selectbox(
+                "Maximum number of best/important comments to show in the analysis page",
+                options=range(3,11),
+                index=2,  # Default to 5 (index 2 corresponds to value 5)
+                key="max_comments"
+            )
+
     st.markdown("---")  # Horizontal line for separation
 
     if st.button("Analyze", key="analyze_button"):
@@ -224,7 +232,7 @@ def home_page():
                     add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
                     analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
                         conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                        analyze_image, search_external, all_analyses)
+                        analyze_image, search_external, max_comments, all_analyses)
                 else:
                     # 2. Filter by image/external parameters 
                     add_status("Found a match in cache. Checking if settings are same too and it's recent enough...", "🔍")
@@ -235,7 +243,7 @@ def home_page():
                         cache_index = core_indices[0]
                         analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
                             conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                            analyze_image, search_external, all_analyses, cache_index)
+                            analyze_image, search_external, max_comments, all_analyses, cache_index)
                     else:
                         best_match, cache_index = find_best_match(param_filtered, param_indices, all_thread_data)
                         
@@ -251,7 +259,7 @@ def home_page():
 
                             if include_eli5 and not best_match_dict.get('include_eli5'):
                                 add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
-                                sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_image, search_external)
+                                sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
                                 update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo)
                                 st.success("Retrieved existing analysis and generated ELI5 summary!")
                             else:
@@ -261,13 +269,13 @@ def home_page():
                             cache_index = param_indices[0]
                             analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
                                 conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                                analyze_image, search_external, all_analyses, cache_index)
+                                analyze_image, search_external, max_comments, all_analyses, cache_index)
 
             except FileNotFoundError:
                 add_status("Cache is not accessible. Performing new analysis...", "🆕")
                 analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
                     conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                    analyze_image, search_external, all_analyses)
+                    analyze_image, search_external, max_comments, all_analyses)
 
             # Update session state
             st.session_state.analysis_result = analysis_result

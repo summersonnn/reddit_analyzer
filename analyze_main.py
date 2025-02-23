@@ -13,7 +13,7 @@ from scrape_functions import (
     return_comments
 )
 from thread_analysis_functions import (
-    get_top_three_comments_by_ef_score,
+    get_top_comments_by_ef_score,
     get_important_comments
 )
 from try_html_summary import generate_summary
@@ -61,7 +61,7 @@ def fetch_thread_data(url: str) -> Dict:
     return all_data
 
 
-def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, include_normal_summary=True):
+def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, max_comments, include_normal_summary=True):
     """
     Analyzes a Reddit thread.
 
@@ -152,18 +152,13 @@ def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include
     result_normal = result_normal if result_normal is not None else ""  # Ensure string return
     result_for_5yo = result_for_5yo if result_for_5yo is not None else None
 
-    best_comments, important_comments = deep_analysis_of_thread(all_data)
+    best_comments, important_comments = deep_analysis_of_thread(all_data, max_comments)
     return result_normal, result_for_5yo, [best_comments, important_comments]
 
-    # --- Further analysis (sequential) ---
-    best_comments, important_comments = deep_analysis_of_thread(all_data)
-
-    return result_normal, result_for_5yo, [best_comments, important_comments]
-
-def deep_analysis_of_thread(all_data):
+def deep_analysis_of_thread(all_data, max_comments):
     # First, non-LLM statistics
-    a = get_top_three_comments_by_ef_score(all_data['comments'])
-    b = get_important_comments(all_data['comments'])
+    a = get_top_comments_by_ef_score(all_data['comments'], limit=max_comments)
+    b = get_important_comments(all_data['comments'], limit=max_comments)
 
     return (a,b)
 

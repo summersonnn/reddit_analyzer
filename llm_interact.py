@@ -87,6 +87,8 @@ async def async_chat_completion(
         return response.choices[0].message.content
     except Exception as e:
         raise
+    finally:
+        await client.close()  # Ensure the client is closed
 
 if __name__ == "__main__":
     from dotenv import load_dotenv

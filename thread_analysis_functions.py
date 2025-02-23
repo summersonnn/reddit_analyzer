@@ -1,4 +1,4 @@
-def get_top_three_comments_by_ef_score(comments, limit=3):
+def get_top_comments_by_ef_score(comments, limit=3):
     """
     Finds the top three comments in the entire comment tree based on their ef_score
     and returns them in descending order along with their parent comments.

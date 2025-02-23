@@ -26,14 +26,14 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
         </div>
     """.format(st.session_state.get('url', 'Unknown URL')), unsafe_allow_html=True)
 
-    # Display the  analysis result
-    st.markdown("### 📝 Analysis Summary") 
+    # Display the analysis result
+    st.markdown("### 📝 Analysis Summary")
     st.markdown(analysis_result)
 
     # Horizontal line separator
     st.markdown("---")
 
-    # Display summary for 5-years old (conditional)
+    # Display summary for 5-year-olds (conditional)
     if sum_for_5yo is not None:
         st.markdown("### 📝 ELI5")
         st.markdown(sum_for_5yo)
@@ -41,23 +41,46 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
         st.markdown("---")
 
     st.markdown("### 📝 Notable comments")
- 
+
     # Initialize session state for button toggling if not exists
     if 'active_button' not in st.session_state:
         st.session_state.active_button = None
 
-    # Create buttons and handle display
-    if st.button("Best Comments", key="button_0"):
-        if st.session_state.active_button == 0:
-            st.session_state.active_button = None
-        else:
-            st.session_state.active_button = 0
+    # Updated CSS for green buttons
+    st.markdown(
+        """
+        <style>
+        .stButton > button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            width: 100%;
+        }
+        .stButton > button:hover {
+            background-color: #218838;
+            color: white;
+            border: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if st.button("Important Comments", key="button_1"):
-        if st.session_state.active_button == 1:
-            st.session_state.active_button = None
-        else:
-            st.session_state.active_button = 1
+    # Create buttons and handle display in columns
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Best Comments", key="button_0"):
+            if st.session_state.active_button == 0:
+                st.session_state.active_button = None
+            else:
+                st.session_state.active_button = 0
+
+    with col2:
+        if st.button("Important Comments", key="button_1"):
+            if st.session_state.active_button == 1:
+                st.session_state.active_button = None
+            else:
+                st.session_state.active_button = 1
 
     # Display content based on active button
     if st.session_state.active_button == 0:
@@ -71,6 +94,7 @@ def analysis_page(analysis_result, sum_for_5yo, notable_comments):
     if st.button("⬅️ Analyze Another"):
         st.session_state.page = "home"
         st.rerun()
+
 
 
 def display_best_comments(comments_group):

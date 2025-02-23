@@ -97,7 +97,7 @@ def generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_imag
     return sum_for_5yo
 
 def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, 
-                        all_analyses, replaceIndex=None):
+                        max_comments, all_analyses, replaceIndex=None):
     """
     Performs a new analysis and stores it in the cache.
     """
@@ -110,7 +110,7 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     # Perform the analysis
     analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
         all_thread_data, summary_focus, summary_length, tone,
-        include_eli5, analyze_image, search_external
+        include_eli5, analyze_image, search_external, max_comments=max_comments
     )
 
     comment_count, total_score, total_ef_score = count_all_comments(all_thread_data['comments'])
