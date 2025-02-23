@@ -8,7 +8,7 @@ import time
 
 def chat_completion(
     chat_history: List[Dict[str, str]],
-    temperature: float = 0.2,
+    temperature: float = 0.9,
     is_image=False
 ) -> str:
     """
@@ -49,7 +49,7 @@ def chat_completion(
 # Async version of chat completion 
 async def async_chat_completion(
     chat_history: List[Dict[str, str]],
-    temperature: float = 0.2,
+    temperature: float = 0.9,
     is_image: bool = False
 ) -> str:
     """
@@ -80,7 +80,6 @@ async def async_chat_completion(
         "messages": chat_history.copy(),
         "temperature": temperature,
     }
-
 
     try:
         response = await client.chat.completions.create(**request_params)

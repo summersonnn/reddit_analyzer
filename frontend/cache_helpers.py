@@ -8,6 +8,23 @@ from datetime import datetime, timezone
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analyze_main import analyze_reddit_thread, fetch_thread_data
 
+# When reading the CSV:
+dtype_mapping = {
+    'url': str,
+    'summary_focus': str, 
+    'summary_length': str,
+    'tone': str,
+    'include_eli5': bool,
+    'analyze_image': bool,
+    'search_external': bool,
+    'number_of_comments': int,
+    'total_score': int,
+    'total_ef_score': int,
+    'analysis_result': str,
+    'eli5_summary': str
+    # notable_comments and timestamp will be handled automatically
+}
+
 def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone):
     """
     Pre-filters analyses based on URL, focus, length and tone.
@@ -15,11 +32,16 @@ def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_le
     Returns:
     Tuple of (Filtered DataFrame of potential matches, list of indices in original DataFrame)
     """
+    # Ensure correct types in the DataFrame
+    for col, dtype in dtype_mapping.items():
+        if col in all_analyses.columns:
+            all_analyses[col] = all_analyses[col].astype(dtype)
+    
     if all_thread_data['original_post']:
         url = all_thread_data['original_post']['url']
     else:
         url = all_thread_data['url']
-
+        
     filtered_analyses = all_analyses[
         (all_analyses['url'] == url) &
         (all_analyses['summary_focus'] == summary_focus) &
@@ -85,14 +107,14 @@ def find_best_match(param_filtered, param_indices, all_thread_data):
     print("No matches found within tolerances")
     return None, None
 
-def generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_image, search_external):
+def generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments):
     """
     Generates only the ELI5 summary.
     """
 
     _, sum_for_5yo, _ = analyze_reddit_thread(
         all_thread_data, summary_focus, summary_length, tone,
-        include_eli5=True, analyze_image=analyze_image, search_external=search_external, include_normal_summary=False
+        include_eli5=True, analyze_image=analyze_image, search_external=search_external, max_comments=max_comments, include_normal_summary=False
     )
     return sum_for_5yo
 
@@ -134,39 +156,44 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     }
 
     print("Adding new...")
-    # Create DataFrame from new analysis
+    # Create DataFrame and enforce types
     new_df = pd.DataFrame([new_analysis])
-    
+    for col, dtype in dtype_mapping.items():
+        if col in new_df.columns:
+            new_df[col] = new_df[col].astype(dtype)
+            
     if replaceIndex is not None:
-        # Replace existing analysis at specified index
         all_analyses.iloc[replaceIndex] = new_df.iloc[0]
         updated_df = all_analyses
     else:
-        # Append new analysis
         updated_df = pd.concat([all_analyses, new_df], ignore_index=True)
-
-    # Write the updated DataFrame to S3
+    
+    # Ensure types are correct in the final DataFrame
+    for col, dtype in dtype_mapping.items():
+        if col in updated_df.columns:
+            updated_df[col] = updated_df[col].astype(dtype)
+    
+    # Write to CSV
     with conn.open("reddit-links-bucket/analyses.csv", "w") as f:
         updated_df.to_csv(f, index=False)
-
+    
     return analysis_result, sum_for_5yo, notable_comments
 
-def update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo):
+def update_eli5_in_cache(conn, all_analyses, sum_for_5yo, replaceIndex):
     print("----------UPDATE ONLY ELI5-----------")
     """Updates the eli5_summary in the cache."""
-    best_match['eli5_summary'] = sum_for_5yo
-    best_match['include_eli5'] = True
-    updated_row_df = pd.DataFrame([best_match])
+    
+    # Create a dictionary with updated values, using iloc to access the row
+    updated_row = all_analyses.iloc[replaceIndex].to_dict()  # Convert row to dictionary
+    updated_row['eli5_summary'] = sum_for_5yo
+    updated_row['include_eli5'] = True
 
-    # Correctly identify the row using the same key as find_best_match
-    update_mask = (all_analyses['url'] == best_match['url']) & \
-                  (all_analyses['summary_focus'] == best_match['summary_focus']) & \
-                  (all_analyses['summary_length'] == best_match['summary_length']) & \
-                  (all_analyses['tone'] == best_match['tone']) & \
-                  (all_analyses['analyze_image'] == best_match['analyze_image']) & \
-                  (all_analyses['search_external'] == best_match['search_external'])
+    # Create a DataFrame from the updated dictionary
+    updated_row_df = pd.DataFrame([updated_row])
+    
+    # Replace the row at the specified index
+    all_analyses.iloc[replaceIndex] = updated_row_df.iloc[0]
 
-    all_analyses.loc[update_mask] = updated_row_df.iloc[0] # Update using the correct mask
 
     # Use conn.open() to get a file-like object, and pandas to_csv to write
     with conn.open("reddit-links-bucket/analyses.csv", "w") as f:

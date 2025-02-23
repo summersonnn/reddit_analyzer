@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import re
 import json
+import traceback
 
 import streamlit as st
 from st_files_connection import FilesConnection
@@ -98,8 +99,8 @@ def home_page():
     # Main content
     st.markdown("---")  # Horizontal line for separation
 
-    # URL Input
-    url = st.text_input("Enter Reddit Thread URL", placeholder="https://www.reddit.com/r/example/comments/...", value=st.session_state.url, key="url_input") # Added key and value for persistence and on_change removal
+    # URL Input - Added key and value for persistence and on_change removal
+    url = st.text_input("Enter Reddit Thread URL", placeholder="https://www.reddit.com/r/example/comments/...", value=st.session_state.url, key="url_input", on_change=on_url_change) 
     st.session_state.url = url
 
     st.markdown("---")  # Horizontal line for separation
@@ -252,15 +253,19 @@ def home_page():
                             best_match_dict = best_match._asdict()
                             analysis_result = best_match_dict['analysis_result']
                             notable_comments = json.loads(best_match_dict['notable_comments'])
-                            sum_for_5yo = best_match_dict.get('eli5_summary')
+                            
+                            # Handle potential "nan" value for eli5_summary
+                            sum_for_5yo = best_match_dict.get('eli5_summary', None)
+                            if isinstance(sum_for_5yo, str) and sum_for_5yo.lower() == 'nan':
+                                sum_for_5yo = None
+                                
                             best_match_time = best_match_dict['timestamp']
-                            print("----------")
-                            print(best_match_time)
 
-                            if include_eli5 and not best_match_dict.get('include_eli5'):
+                            # Wanted eli5 but cache doesn't have it
+                            if include_eli5 and not sum_for_5yo:
                                 add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
-                                sum_for_5yo = generate_eli5_summary(url, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
-                                update_eli5_in_cache(conn, all_analyses, best_match, sum_for_5yo)
+                                sum_for_5yo = generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
+                                update_eli5_in_cache(conn, all_analyses, sum_for_5yo, cache_index)
                                 st.success("Retrieved existing analysis and generated ELI5 summary!")
                             else:
                                 st.success("Retrieved existing analysis!")
@@ -285,17 +290,43 @@ def home_page():
             st.session_state.page = "analysis"
             st.rerun()
 
-# Main app logic
 def main():
-    if 'page' not in st.session_state:
-        st.session_state.page = "home"
+    try:
+        if 'page' not in st.session_state:
+            st.session_state.page = "home"
 
-    if st.session_state.page == "home":
-        home_page()
-    else:
-        analysis_page(st.session_state.analysis_result, st.session_state.sum_for_5yo, st.session_state.notable_comments)
+        if st.session_state.page == "home":
+            home_page()
+        elif 'analysis_result' in st.session_state and st.session_state.analysis_result is not None:  # Check for analysis result
+            analysis_page(st.session_state.analysis_result, st.session_state.sum_for_5yo, st.session_state.notable_comments)
+        else: # Handle case of opening /analysis directly
+            st.error("No analysis to display. Please go to the Home page and enter a URL.")
+            if st.button("Go to Home"):
+                st.session_state.page = 'home'
+                st.rerun()
 
-# Clear previous results when URL changes
+    except Exception as e:
+        # 1. Log the error (VERY IMPORTANT!)
+        st.error("An unexpected error occurred.  Please try again later.")  # User-friendly message
+        traceback.print_exc()  # Log the FULL traceback to console (or file)
+        #  Consider using a proper logging library (e.g., `logging`)
+        #  for production.  Send errors to a service like Sentry, LogRocket, etc.
+
+        # 2.  DO NOT display `e` or traceback to the user.
+        #     (This prevents code exposure)
+
+        # 3. Optionally, you can display a generic, user-friendly
+        #    error message.  But keep it simple and don't reveal details.
+
+        # 4.  You might want to reset the session state here to avoid
+        #     the app being in a broken state.
+        # st.session_state.clear()  # CAREFUL with this, as it clears everything
+
+        # 5. Stop further execution.  Essential to prevent the
+        #    default Streamlit error handler from showing the code.
+        st.stop()
+
+# Clear previous results when URL changes (keep this, but outside the try block)
 def on_url_change():
     st.session_state.pop("analysis_result", None)
 
