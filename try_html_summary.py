@@ -126,7 +126,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     # Call the chat_completion function
     summary = chat_completion(chat_history, temperature=0.5)
     # print("Time at the end of the generate_summary: ", time.time())
-    print(summary)
+    # print(summary)
     return summary
 
 if __name__ == "__main__":

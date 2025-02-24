@@ -5,10 +5,12 @@ import json
 import traceback
 
 import streamlit as st
+import pandas as pd
 from st_files_connection import FilesConnection
 from analysis import analysis_page
 from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
 from analyze_main import fetch_thread_data
+
 
 load_dotenv()
 REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
@@ -77,6 +79,15 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+# Check if we're running in local mode
+is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+
+# Set the cache CSV path accordingly
+if is_local:
+    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH", "local_analyses.csv")
+else:
+    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH", "reddit-links-bucket/analyses.csv")
 
 def home_page():
     # Header
@@ -199,7 +210,6 @@ def home_page():
         status_container = st.container()
 
         def add_status(message, icon="ℹ️"):
-            # Simply display the current status without storing history
             with status_container:
                 status_container.empty()
                 st.text(f"{icon} {message}")
@@ -214,76 +224,82 @@ def home_page():
             st.session_state.summary_length = summary_length
             st.session_state.tone = tone
 
-            conn = st.connection('s3', type=FilesConnection)
             all_thread_data = fetch_thread_data(url)
 
             try:
-                try:
-                    add_status("Reading existing analyses from cache...", "📚")
-                    all_analyses = conn.read("reddit-links-bucket/analyses.csv", input_format="csv", ttl=0)
-                    add_status(f"Found {len(all_analyses)} existing analyses", "✅")
-                except Exception as e:
-                    add_status("Error reading existing analyses. Starting new analysis...", "⚠️")
-                    all_analyses = None
-
-                # 1. Pre-filter on core params (big 4)
-                filtered_analyses, core_indices = pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone)
-
-                if filtered_analyses.empty:
-                    add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
-                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                        conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                        analyze_image, search_external, max_comments, all_analyses)
+                # Read cache depending on whether we're in local mode or not
+                if is_local:
+                    # Local mode: read from local CSV file
+                    all_analyses = pd.read_csv(CACHE_CSV_PATH)
+                    add_status(f"Read {len(all_analyses)} analyses from local cache", "📚")
                 else:
-                    # 2. Filter by image/external parameters 
-                    add_status("Found a match in cache. Checking if settings are same too and it's recent enough...", "🔍")
-                    param_filtered, param_indices = filter_by_params(filtered_analyses, core_indices, image=analyze_image, external=search_external)
-                    
-                    if param_filtered.empty:
-                        add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
-                        cache_index = core_indices[0]
-                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                            conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                            analyze_image, search_external, max_comments, all_analyses, cache_index)
-                    else:
-                        best_match, cache_index = find_best_match(param_filtered, param_indices, all_thread_data)
-                        
-                        if best_match is not None:
-                            add_status("Cache can be used for this thread. Retrieving analysis...", "🔍")
-                            best_match_dict = best_match._asdict()
-                            analysis_result = best_match_dict['analysis_result']
-                            notable_comments = json.loads(best_match_dict['notable_comments'])
-                            
-                            # Handle potential "nan" value for eli5_summary
-                            sum_for_5yo = best_match_dict.get('eli5_summary', None)
-                            if isinstance(sum_for_5yo, str) and sum_for_5yo.lower() == 'nan':
-                                sum_for_5yo = None
-                                
-                            best_match_time = best_match_dict['timestamp']
+                    # Cloud mode: read from S3 bucket
+                    conn = st.connection('s3', type=FilesConnection)
+                    all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
+                    add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
 
-                            # Wanted eli5 but cache doesn't have it
-                            if include_eli5 and not sum_for_5yo:
-                                add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
-                                sum_for_5yo = generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
-                                update_eli5_in_cache(conn, all_analyses, sum_for_5yo, cache_index)
-                                st.success("Retrieved existing analysis and generated ELI5 summary!")
-                            else:
-                                st.success("Retrieved existing analysis!")
-                        else:
-                            add_status("Cached thread was not recent enough. Performing new analysis...", "🔄")
-                            cache_index = param_indices[0]
-                            analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                                conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                                analyze_image, search_external, max_comments, all_analyses, cache_index)
+            except Exception as e:
+                add_status("Error reading existing analyses. Starting new analysis...", "⚠️")
+                all_analyses = None
 
-            except FileNotFoundError:
-                add_status("Cache is not accessible. Performing new analysis...", "🆕")
-                raise FileNotFoundError("Cache file not found. Please check if the cache file exists and is accessible.")
+            # Perform filtering and analysis logic
+            filtered_analyses, core_indices = pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone)
+
+            if filtered_analyses.empty:
+                add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
                 analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                    conn, all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                    analyze_image, search_external, max_comments, all_analyses)
-            except:
-                raise Exception("An error occurred while reading the cache file. Please try again later.")
+                    conn if not is_local else None,  # Pass None for local mode
+                    all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                    analyze_image, search_external, max_comments, all_analyses
+                )
+            else:
+                # Filter by image/external parameters
+                add_status("Found a match in cache. Checking if settings are same too and it's recent enough...", "🔍")
+                param_filtered, param_indices = filter_by_params(filtered_analyses, core_indices, image=analyze_image, external=search_external)
+
+                if param_filtered.empty:
+                    add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
+                    cache_index = core_indices[0]
+                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                        conn if not is_local else None,  # Pass None for local mode
+                        all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                        analyze_image, search_external, max_comments, all_analyses, cache_index
+                    )
+                else:
+                    best_match, cache_index = find_best_match(param_filtered, param_indices, all_thread_data)
+
+                    if best_match is not None:
+                        add_status("Cache can be used for this thread. Retrieving analysis...", "🔍")
+                        best_match_dict = best_match._asdict()
+                        analysis_result = best_match_dict['analysis_result']
+                        notable_comments = json.loads(best_match_dict['notable_comments'])
+
+                        # Handle potential "nan" value for eli5_summary
+                        sum_for_5yo = best_match_dict.get('eli5_summary', None)
+                        if isinstance(sum_for_5yo, str) and sum_for_5yo.lower() == 'nan':
+                            sum_for_5yo = None
+
+                        best_match_time = best_match_dict['timestamp']
+
+                        # Wanted eli5 but cache doesn't have it
+                        if include_eli5 and not sum_for_5yo:
+                            add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
+                            sum_for_5yo = generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
+                            update_eli5_in_cache(
+                                conn if not is_local else None,  # Pass None for local mode
+                                all_analyses, sum_for_5yo, cache_index
+                            )
+                            st.success("Retrieved existing analysis and generated ELI5 summary!")
+                        else:
+                            st.success("Retrieved existing analysis!")
+                    else:
+                        add_status("Cached thread was not recent enough. Performing new analysis...", "🔄")
+                        cache_index = param_indices[0]
+                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                            conn if not is_local else None,  # Pass None for local mode
+                            all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                            analyze_image, search_external, max_comments, all_analyses, cache_index
+                        )
 
             # Update session state
             st.session_state.analysis_result = analysis_result

@@ -4,9 +4,18 @@ import pandas as pd
 import json
 from datetime import datetime, timezone
 
-# # Add parent directory to path to allow importing analyze_main
+# Add parent directory to path to allow importing analyze_main
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analyze_main import analyze_reddit_thread, fetch_thread_data
+
+# Check if we're running in local mode
+is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+
+# Set the cache CSV path accordingly
+if is_local:
+    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH", "local_analyses.csv")
+else:
+    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH", "reddit-links-bucket/analyses.csv")
 
 # When reading the CSV:
 dtype_mapping = {
@@ -61,7 +70,6 @@ def filter_by_params(filtered_analyses, original_indices, image, external):
     Returns:
     Tuple of (DataFrame of analyses matching parameters, list of indices in original DataFrame)
     """
-
     if filtered_analyses.empty:
         print("No pre-filtered analyses to check parameters against")
         return filtered_analyses, []
@@ -111,7 +119,6 @@ def generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, 
     """
     Generates only the ELI5 summary.
     """
-
     _, sum_for_5yo, _ = analyze_reddit_thread(
         all_thread_data, summary_focus, summary_length, tone,
         include_eli5=True, analyze_image=analyze_image, search_external=search_external, max_comments=max_comments, include_normal_summary=False
@@ -119,7 +126,7 @@ def generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, 
     return sum_for_5yo
 
 def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, tone, include_eli5, analyze_image, search_external, 
-                        max_comments, all_analyses, replaceIndex=None):
+                         max_comments, all_analyses, replaceIndex=None):
     """
     Performs a new analysis and stores it in the cache.
     """
@@ -128,15 +135,14 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
         all_thread_data = fetch_thread_data(all_thread_data['url'])
         if all_thread_data['original_post'] is None:
             return "Failed to fetch thread data. Please try again later.", None, None
-
+    
     # Perform the analysis
     analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
         all_thread_data, summary_focus, summary_length, tone,
         include_eli5, analyze_image, search_external, max_comments=max_comments
     )
-
     comment_count, total_score, total_ef_score = count_all_comments(all_thread_data['comments'])
-
+    
     # Create new analysis entry
     new_analysis = {
         'url': all_thread_data['original_post']['url'],
@@ -154,8 +160,8 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
         'eli5_summary': sum_for_5yo if sum_for_5yo else "",
         'notable_comments': json.dumps(notable_comments),
     }
-
     print("Adding new...")
+    
     # Create DataFrame and enforce types
     new_df = pd.DataFrame([new_analysis])
     for col, dtype in dtype_mapping.items():
@@ -174,8 +180,13 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
             updated_df[col] = updated_df[col].astype(dtype)
     
     # Write to CSV
-    with conn.open("reddit-links-bucket/analyses.csv", "w") as f:
-        updated_df.to_csv(f, index=False)
+    if conn is None:
+        # Local mode: write to local CSV file
+        updated_df.to_csv(CACHE_CSV_PATH, index=False)
+    else:
+        # Cloud mode: write to S3 bucket
+        with conn.open(CACHE_CSV_PATH, "w") as f:
+            updated_df.to_csv(f, index=False)
     
     return analysis_result, sum_for_5yo, notable_comments
 
@@ -187,28 +198,29 @@ def update_eli5_in_cache(conn, all_analyses, sum_for_5yo, replaceIndex):
     updated_row = all_analyses.iloc[replaceIndex].to_dict()  # Convert row to dictionary
     updated_row['eli5_summary'] = sum_for_5yo
     updated_row['include_eli5'] = True
-
     # Create a DataFrame from the updated dictionary
     updated_row_df = pd.DataFrame([updated_row])
     
     # Replace the row at the specified index
     all_analyses.iloc[replaceIndex] = updated_row_df.iloc[0]
 
-
-    # Use conn.open() to get a file-like object, and pandas to_csv to write
-    with conn.open("reddit-links-bucket/analyses.csv", "w") as f:
-        all_analyses.to_csv(f, index=False)
+    # Write to CSV
+    if conn is None:
+        # Local mode: write to local CSV file
+        all_analyses.to_csv(CACHE_CSV_PATH, index=False)
+    else:
+        # Cloud mode: write to S3 bucket
+        with conn.open(CACHE_CSV_PATH, "w") as f:
+            all_analyses.to_csv(f, index=False)
 
 def count_all_comments(comments):
     """
     Counts the total number of comments and replies in a nested comment structure,
     along with the sum of their scores and ef_scores.
-
     Args:
         comments: A list of comment dictionaries, where each dictionary has a 'replies' key
                   containing a list of sub-comment dictionaries.  Each dictionary
                   must have 'score' and 'ef_score' keys.
-
     Returns:
         A tuple containing:
           - The total number of comments and replies.
@@ -218,19 +230,16 @@ def count_all_comments(comments):
     count = 0
     total_score = 0
     total_ef_score = 0
-
     for comment in comments:
         count += 1  # Count the current comment
         total_score += comment['score']
         total_ef_score += comment['ef_score']
-
         if 'replies' in comment and comment['replies']:
             # Recursively count replies and their scores
             sub_count, sub_score, sub_ef_score = count_all_comments(comment['replies'])
             count += sub_count
             total_score += sub_score
             total_ef_score += sub_ef_score
-
     return count, total_score, total_ef_score
 
 def check_all_tolerances(current_count, current_score,
@@ -243,11 +252,8 @@ def check_all_tolerances(current_count, current_score,
     lower_bound_comment = cached_count * (1 - tp_comment)
     upper_bound_comment = cached_count * (1 + tp_comment)
     comment_passed = lower_bound_comment <= current_count <= upper_bound_comment
-
     # Score tolerance check
     lower_bound_score = cached_score * (1 - tp_score)
     upper_bound_score = cached_score * (1 + tp_score)
     score_passed = lower_bound_score <= current_score <= upper_bound_score
-
     return comment_passed and score_passed
-

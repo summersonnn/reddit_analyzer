@@ -35,7 +35,7 @@ def fetch_thread_data(url: str) -> Dict:
                 raise Exception(json_response)
 
             title, original_post = return_OP(json_response)
-            print(title)
+            # print(title)
             comments = return_comments(json_response)
 
             all_data = {
