@@ -2,9 +2,7 @@ import os
 from typing import List, Dict
 from openai import OpenAI
 from openai import AsyncOpenAI
-import json
-import asyncio
-import time
+# import time
 
 def chat_completion(
     chat_history: List[Dict[str, str]],

@@ -1,6 +1,6 @@
-def get_top_comments_by_ef_score(comments, limit=3):
+def get_top_comments_by_ef_score(comments, limit=5):
     """
-    Finds the top three comments in the entire comment tree based on their ef_score
+    Finds the top X comments in the entire comment tree based on their ef_score
     and returns them in descending order along with their parent comments.
 
     Args:
@@ -42,7 +42,7 @@ def get_top_comments_by_ef_score(comments, limit=3):
     return result
 
 
-def get_important_comments(comments, limit=3):
+def get_important_comments(comments, limit=5):
     """
     Identifies important comment pairs from the comment hierarchy.
     Modified to also include the parent's parent (grandparent) information when available.

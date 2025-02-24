@@ -1,12 +1,9 @@
 import os
-from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
-import random
-import time
+# import time
 from dotenv import load_dotenv
 from urllib.parse import urlparse
-from openai import OpenAI
 from llm_interact import chat_completion
 
 load_dotenv()
@@ -44,7 +41,7 @@ def extract_main_content(html: str, url: str) -> str:
 
 def fetch_html(url: str) -> tuple[str, bool]:
     """
-    Fetches HTML content from the specified URL using proxies.
+    Fetches HTML content from the specified URL, conditionally using proxies.
     Returns tuple of (html_content, requires_js_flag)
     """
     headers = {
@@ -54,9 +51,18 @@ def fetch_html(url: str) -> tuple[str, bool]:
             'Chrome/58.0.3029.110 Safari/537.3'
         )
     }
+
+    is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+    request_kwargs = {
+        'headers': headers,
+        'timeout': 10
+    }
+
+    if not is_local:
+        request_kwargs['proxies'] = PROXIES
     
     try:
-        response = requests.get(url, headers=headers, proxies=PROXIES, timeout=10)
+        response = requests.get(url, **request_kwargs)
         response.raise_for_status()
         content = response.text
         
@@ -118,7 +124,7 @@ def generate_summary(url: str, word_count: int = 200) -> str:
     ]
     
     # Call the chat_completion function
-    summary = chat_completion(chat_history, temperature=0.2)
+    summary = chat_completion(chat_history, temperature=0.5)
     # print("Time at the end of the generate_summary: ", time.time())
     print(summary)
     return summary
