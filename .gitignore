@@ -10,6 +10,8 @@ __pycache__/
 .streamlit/secrets.toml
 .webui_secret_key
 
+# Local cache for analysis
+analyses.csv
 
 # Distribution / packaging
 .Python
