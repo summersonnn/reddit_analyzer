@@ -239,6 +239,7 @@ def home_page():
                     add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
 
             except Exception as e:
+                print(e)
                 add_status("Error reading existing analyses. Starting new analysis...", "⚠️")
                 all_analyses = None
 
