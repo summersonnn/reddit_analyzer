@@ -20,12 +20,12 @@ from try_html_summary import generate_summary
 
 def fetch_thread_data(url: str) -> Dict:
     max_retries = 3
-    USE_LOCAL_LLM = os.getenv('USE_LOCAL_LLM', 'false').lower() == 'true'
+    is_local = os.getenv('LOCAL_RUN', 'false').lower() == 'true'
 
     for attempt in range(max_retries):
         try:
-            use_proxy = not USE_LOCAL_LLM or (USE_LOCAL_LLM and attempt == max_retries - 1)
-            if USE_LOCAL_LLM and attempt == max_retries - 1:
+            use_proxy = not is_local or (is_local and attempt == max_retries - 1)
+            if is_local and attempt == max_retries - 1:
                 print("Final attempt - trying with proxy...")
 
             json_response = fetch_json_response(url, use_proxy=use_proxy)

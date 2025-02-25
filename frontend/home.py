@@ -9,6 +9,7 @@ import pandas as pd
 from st_files_connection import FilesConnection
 from analysis import analysis_page
 from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
+from cache_helpers import is_local
 from analyze_main import fetch_thread_data
 
 
@@ -80,14 +81,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Check if we're running in local mode
-is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+# # Check if we're running in local mode
+# is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"
 
 # Set the cache CSV path accordingly
 if is_local:
-    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH", "local_analyses.csv")
+    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH")
 else:
-    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH", "reddit-links-bucket/analyses.csv")
+    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH")
 
 def home_page():
     # Header
@@ -234,6 +235,7 @@ def home_page():
                     add_status(f"Read {len(all_analyses)} analyses from local cache", "📚")
                 else:
                     # Cloud mode: read from S3 bucket
+                    # This also requires AWS credentials to be set up in .streamlit/secrets.toml
                     conn = st.connection('s3', type=FilesConnection)
                     all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
                     add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")

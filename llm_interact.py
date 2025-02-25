@@ -10,18 +10,11 @@ def chat_completion(
     is_image=False
 ) -> str:
     """
-    Unified chat completion function for both local and cloud LLMs using OpenAI-compatible API.
+    Unified chat completion function using OpenAI-compatible API.
     """
-    # Determine if we're using local or cloud based on environment
-    is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
-    base_url = os.getenv("LOCAL_BASE_URL" if is_local else "CLOUD_BASE_URL").rstrip('/')
-    api_key = os.getenv("LOCAL_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
-    
-    if not is_image:
-        model = os.getenv("LOCAL_MODEL_NAME" if is_local else "CLOUD_MODEL_NAME")
-    else:
-        model = os.getenv("LOCAL_VLM_NAME" if is_local else "CLOUD_VLM_NAME")
-
+    base_url = os.getenv("LLM_BASE_URL").rstrip('/')
+    api_key = os.getenv("LLM_API_KEY").rstrip('/')
+    model = os.getenv("VLM_NAME" if is_image else "MODEL_NAME")
 
     # Create OpenAI client
     client = OpenAI(
@@ -44,27 +37,17 @@ def chat_completion(
         print(f"Request params: {request_params}")
         raise
 
-# Async version of chat completion 
 async def async_chat_completion(
     chat_history: List[Dict[str, str]],
     temperature: float = 0.9,
     is_image: bool = False
 ) -> str:
     """
-    Asynchronous chat completion function for both local and cloud LLMs using an OpenAI-compatible API.
+    Asynchronous chat completion function using OpenAI-compatible API.
     """
-    # Determine if we're using local or cloud based on environment variables
-    is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
-    base_url = os.getenv("LOCAL_BASE_URL" if is_local else "CLOUD_BASE_URL").rstrip('/')
-    api_key = os.getenv("LOCAL_API_KEY" if is_local else "CLOUD_LLM_API_KEY").rstrip('/')
-    
-    # Choose the appropriate model based on whether it's an image request or not
-    if not is_image:
-        model = os.getenv("LOCAL_MODEL_NAME" if is_local else "CLOUD_MODEL_NAME")
-        # print("Not an image. Time: ", time.time())
-    else:
-        model = os.getenv("LOCAL_VLM_NAME" if is_local else "CLOUD_VLM_NAME")
-        # print("Image. Time: ", time.time())
+    base_url = os.getenv("LLM_BASE_URL").rstrip('/')
+    api_key = os.getenv("LLM_API_KEY").rstrip('/')
+    model = os.getenv("VLM_NAME" if is_image else "MODEL_NAME")
     
     # Create the asynchronous OpenAI client
     client = AsyncOpenAI(

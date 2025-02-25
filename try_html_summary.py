@@ -52,7 +52,7 @@ def fetch_html(url: str) -> tuple[str, bool]:
         )
     }
 
-    is_local = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
+    is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"
     request_kwargs = {
         'headers': headers,
         'timeout': 10
