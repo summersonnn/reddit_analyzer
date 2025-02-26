@@ -1,6 +1,7 @@
 import requests
 import re
 import os
+import html
 
 def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
@@ -162,6 +163,27 @@ def return_comments(json_data):
                 formatted_body += f"{line}\n"
         return formatted_body.strip()  # Remove trailing newline
 
+    def process_image_links(text, html_body=None):
+        # Helper to replace encoded ampersands in URLs
+        def replacer(match):
+            url = match.group(0)
+            if '&amp;' in url:
+                url = url.replace('&amp;', '&')
+            return url
+
+        processed_text = re.sub(r'https?://[^\s\)]+', replacer, text)
+
+        # If html_body is provided, unescape it and extract the GIF src from the <img> tag
+        if html_body:
+            unescaped_html = html.unescape(html_body)
+            img_match = re.search(r'<img\s+[^>]*src="([^"]+)"', unescaped_html)
+            if img_match:
+                gif_url = img_match.group(1)
+                gif_url = gif_url.replace('&amp;', '&')
+                processed_text += f"\nGIF: {gif_url}"
+
+        return processed_text
+
     def scrape_comment(comment_data, depth=0):
         """
         Recursively scrapes a comment and its replies.
@@ -178,8 +200,14 @@ def return_comments(json_data):
         if not comment:  # Skip if no data is found
             return None
 
-        # Format the comment body (extract quotes if any)
+        # Format the comment body 
+        # We check if the comment contains an image link (e.g., ![gif]) and process it separately
         body = extract_quotes(comment.get('body', ''))
+        if '![gif]' in body:
+            html_body = comment.get('body_html', '')
+            body = process_image_links(body, html_body)
+        else:
+            body = process_image_links(body)
 
         # Create the comment dictionary
         comment_dict = {
@@ -289,7 +317,6 @@ def extract_links_from_selftext(text):
     
     # Iterate through all extracted links
     for link in links:
-        print(link)
         if '&amp' in link:
             link = link.replace('&amp;', '&')
             image_links.append(link)
