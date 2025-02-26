@@ -64,7 +64,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
     LLM_BASE_URL=YOUR_LLM_BASE_URL_HERE
     LLM_API_KEY=YOUR_API_KEY_HERE
     MODEL_NAME=YOUR_LLM_MODEL_NAME_HERE
-    VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME)
+    VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME if you want to use a VLM for summarizing as well)
     LOCAL_CACHE_CSV_PATH=CSV FILE PATH FOR LOCAL CACHE
 
     # Optional for local run:
@@ -92,8 +92,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
 
     **Important Notes:**  
     - Replace the placeholder values with your actual LLM provider details.  
-    - The `LOCAL_RUN='true'` setting is required for local execution.  
-    - A local cache file (`analyses.csv`) must be manually created in the project root if using local caching.  (See section 5)
+    - The `LOCAL_RUN='true'` setting is required for local execution.
     - Proxies and cloud storage are not necessary for local runs, as data retrieval from Reddit generally works fine with a residential IP.  
 
     <details>
@@ -106,9 +105,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
     AWS_SECRET_ACCESS_KEY = "YOUR_ACCESS_KEY"
     AWS_DEFAULT_REGION = "YOUR_REGION"
 
-5.  **Create an empty analyses.csv (or whatever you named it in the .env if local run is set) in the project root folder**
-
-6.  **Run Application:**
+5.  **Run Application:**
 
     ```bash
     streamlit run frontend/home.py
