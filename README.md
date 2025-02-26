@@ -8,6 +8,8 @@
 
 This project leverages LLMs to analyze Reddit threads, offering concise summaries and key insights. It helps users grasp lengthy discussions quickly. For an entertaining learning experience, try selecting one of the humorous tones! This project is intended purely for educational purposes, with the main goal of avoiding the need to spend half an hour reading an entire thread.
 
+The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.app) which you can try. It uses LLama 3.3-70B-instruct as the LLM and llama-3.2-11b-vision-instruct as VLM.
+
 ## Features
 
 *   **Reddit Thread Analysis:**  Accepts Reddit thread URLs for analysis.
@@ -63,6 +65,21 @@ This project leverages LLMs to analyze Reddit threads, offering concise summarie
     LLM_API_KEY=YOUR_API_KEY_HERE
     MODEL_NAME=YOUR_LLM_MODEL_NAME_HERE
     VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME)
+    LOCAL_CACHE_CSV_PATH=CSV FILE PATH FOR LOCAL CACHE
+
+    # Optional for local run:
+    # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
+    # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
+    # CLOUD_CACHE_CSV_PATH=reddit-links-bucket/analyses.csv
+    ```
+
+    Example:
+    ```env
+    LOCAL_RUN='true'
+    LLM_BASE_URL=https://openrouter.ai/api/v1
+    LLM_API_KEY=sk-or-v1-some-example-api-key-continuation
+    MODEL_NAME=meta-llama/llama-3.3-70b-instruct
+    VLM_NAME=meta-llama/llama-3.2-11b-vision-instruct
     LOCAL_CACHE_CSV_PATH=analyses.csv
 
     # Optional for local run:
@@ -71,9 +88,23 @@ This project leverages LLMs to analyze Reddit threads, offering concise summarie
     # CLOUD_CACHE_CSV_PATH=reddit-links-bucket/analyses.csv
     ```
 
-    **Note:** Replace placeholders with your actual LLM provider details and API key.  `LOCAL_RUN='true'` is essential for local execution.
-    You won't need cloud cache csv path and proxy for local usage as getting data from reddit is successfull with a residential ip anyway. 
-    You will need to create an "analyses.csv" in the project root folder manually if you opt for a local run. This will be your cache.
+
+
+    **Important Notes:**  
+    - Replace the placeholder values with your actual LLM provider details.  
+    - The `LOCAL_RUN='true'` setting is required for local execution.  
+    - A local cache file (`analyses.csv`) must be manually created in the project root if using local caching.  
+    - Proxies and cloud storage are not necessary for local runs, as data retrieval from Reddit generally works fine with a residential IP.  
+
+    <details>
+    <summary><h3><b>Using Cloud Storage or Proxies</b></h3></summary>
+
+    If you ever need to set `LOCAL_RUN='false'` (for example, to use a proxy or store cached data in an S3 bucket), you'll also need to create a `secrets.toml` file inside the `.streamlit` directory in the project root. This file should contain your AWS credentials:
+
+    ```env
+    AWS_ACCESS_KEY_ID = "YOUR_KEY_ID"
+    AWS_SECRET_ACCESS_KEY = "YOUR_ACCESS_KEY"
+    AWS_DEFAULT_REGION = "YOUR_REGION"
 
 6.  **Run Application:**
 
