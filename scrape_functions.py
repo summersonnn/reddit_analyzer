@@ -98,7 +98,7 @@ def return_OP(json_data):
                 for img_id, img_info in media_metadata.items():
                     if isinstance(img_info, dict) and 's' in img_info and isinstance(img_info.get('s'), dict) and 'u' in img_info['s']:  # check nested dict structure
                         # Get URL and fix HTML-encoded ampersands
-                        image_url = img_info['s']['u'].replace('&', '&')
+                        image_url = img_info['s']['u'].replace('&amp;', '&')
                         content_dict['image_link'].append(image_url)
         else:
             # Fallback to URL if it's a direct image link
@@ -289,6 +289,7 @@ def extract_links_from_selftext(text):
     
     # Iterate through all extracted links
     for link in links:
+        print(link)
         if '&amp' in link:
             link = link.replace('&amp;', '&')
             image_links.append(link)
