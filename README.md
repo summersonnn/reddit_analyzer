@@ -59,20 +59,21 @@ This project leverages LLMs to analyze Reddit threads, offering concise summarie
 
     ```env
     LOCAL_RUN='true'
-    LLM_BASE_URL="YOUR_LLM_BASE_URL_HERE"
-    LLM_API_KEY="YOUR_API_KEY_HERE"
-    MODEL_NAME="YOUR_LLM_MODEL_NAME_HERE"
-    VLM_NAME="YOUR_VLM_MODEL_NAME_HERE" (can be same as the MODEL_NAME)
-    LOCAL_CACHE_CSV_PATH="analyses.csv"
+    LLM_BASE_URL=YOUR_LLM_BASE_URL_HERE
+    LLM_API_KEY=YOUR_API_KEY_HERE
+    MODEL_NAME=YOUR_LLM_MODEL_NAME_HERE
+    VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME)
+    LOCAL_CACHE_CSV_PATH=analyses.csv
 
     # Optional for local run:
-    # PROXY_HTTP="YOUR_HTTP_PROXY_HERE"
-    # PROXY_HTTPS="YOUR_HTTPS_PROXY_HERE"
-    # CLOUD_CACHE_CSV_PATH="reddit-links-bucket/analyses.csv" # Cloud cache only
+    # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
+    # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
+    # CLOUD_CACHE_CSV_PATH=reddit-links-bucket/analyses.csv
     ```
 
     **Note:** Replace placeholders with your actual LLM provider details and API key.  `LOCAL_RUN='true'` is essential for local execution.
-    You won't need cloud cache csv path and proxy for local usage. Getting data from reddit is successfull with a residential ip anyway. You may need to create an "analyses.csv" in the project root folder manually.
+    You won't need cloud cache csv path and proxy for local usage as getting data from reddit is successfull with a residential ip anyway. 
+    You will need to create an "analyses.csv" in the project root folder manually if you opt for a local run. This will be your cache.
 
 6.  **Run Application:**
 
@@ -108,9 +109,8 @@ The ef_score displayed on the analysis page is calculated by multiplying a comme
 
 ## Contributing
 
-<!-- Add contribution guidelines if applicable, or remove this section -->
-<!-- For example: -->
-<!-- Contributions are welcome. Please fork the repository and submit pull requests. -->
+Feel free to contribute in any way. Bug fixes are welcomed.
+Also looking for good system prompts for new tones!
 
 ## License
 
