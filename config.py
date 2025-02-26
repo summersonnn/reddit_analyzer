@@ -4,13 +4,13 @@ prompt_file_path = "prompts.yaml"
 
 try:
     # Try to load from the current directory
-    with open(prompt_file_path, 'r') as file:
+    with open("prompts.yaml", "r", encoding="utf-8") as file:
         prompts = yaml.safe_load(file)
 except FileNotFoundError:
     try:
         # If the first attempt fails, try to load from the parent directory
         prompt_file_path = "../" + prompt_file_path
-        with open(prompt_file_path, 'r') as file:
+        with open(prompt_file_path, 'r', encoding="utf-8") as file:
             prompts = yaml.safe_load(file)
     except FileNotFoundError:
         # If both attempts fail, raise a custom error or handle it as needed
