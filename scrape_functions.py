@@ -2,6 +2,7 @@ import requests
 import re
 import os
 import html
+from urllib.parse import urlparse
 
 def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
