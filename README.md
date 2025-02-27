@@ -10,6 +10,8 @@ This project leverages LLMs to analyze Reddit threads, offering concise summarie
 
 The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.app) which you can try. It uses LLama 3.3-70B-instruct as the LLM and llama-3.2-11b-vision-instruct as VLM.
 
+[Watch the video](https://www.youtube.com/watch?v=ukPT68vi4m4)
+
 ## Features
 
 *   **Reddit Thread Analysis:**  Accepts Reddit thread URLs for analysis.
