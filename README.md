@@ -111,7 +111,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
     streamlit run frontend/home.py
     ```
 
-    Access the application in your browser.
+    Access the application in your browser. I disabled auto e-mail asking of streamlit but if it asks anyway, just type some dummy e-mail.
 
 ## Usage
 
