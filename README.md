@@ -135,7 +135,10 @@ The ef_score displayed on the analysis page is calculated by multiplying a comme
   This highlights replies that introduce **significant new information**—for example, when a reply corrects an error in the parent comment.  
 
 
+## Limitations 
+- External links are searched for additional context only if the website does not require JavaScript or has no strict protections. Links to GitHub and Hugging Face work, but X links do not. PDF summaries are also unavailable. This feature wasn't a primary focus, as it's just an extra addition rather than a core part of the project. Therefore I didn't spend much time on it.
 
+- Images and GIFs in comments appear as links in the Best/Important comments section, allowing users to click and view them. However, they will not be displayed on the analysis page.
 
 ## Contributing
 
