@@ -6,25 +6,34 @@ import html
 def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
     Fetches the JSON response from the given URL using the requests package.
-    Uses proxy if specified.  Uses a custom User-Agent if provided via
+    Uses proxy if specified. Uses a custom User-Agent if provided via
     the CUSTOM_USER_AGENT environment variable; otherwise, uses a default.
+    
+    Query parameters (including the '?' character) are removed from the URL before processing.
     """
+    # Remove query parameters from the URL
+    parsed_url = urlparse(url)
+    url = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+
+    # Ensure the URL ends with '.json'
     if not url.endswith('.json'):
         url += '.json'
 
     # Get the custom user agent from the environment, or use a default.
     custom_user_agent = os.getenv("CUSTOM_USER_AGENT")
     headers = {
-        'User-Agent': custom_user_agent if custom_user_agent else 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        'User-Agent': custom_user_agent if custom_user_agent else (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        )
     }
-
 
     proxies = None
     if use_proxy:
         http_proxy = os.getenv("PROXY_HTTP")
         https_proxy = os.getenv("PROXY_HTTPS")
         if http_proxy or https_proxy:  # Only set proxies if they are actually defined
-             proxies = {
+            proxies = {
                 'http': http_proxy,
                 'https': https_proxy
             }
@@ -35,7 +44,7 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
         return response.json()
     except requests.exceptions.RequestException as e:
         return f"Error: Request failed with exception: {e}"
-    except ValueError as e: # json.decoder.JSONDecodeError in python 3.6+ is ValueError
+    except ValueError as e:  # json.decoder.JSONDecodeError in Python 3.6+ is ValueError
         return f"Error: Invalid JSON response: {e}"  # Handle cases where the response isn't valid JSON
     except Exception as e:
         return f"Error fetching JSON response: {e}"
