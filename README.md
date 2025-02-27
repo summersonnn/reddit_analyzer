@@ -37,7 +37,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
 1.  **Clone Repository:**
 
     ```bash
-    git clone https://github.com/summersonnn/reddit_analyzer/tree/main
+    git clone https://github.com/summersonnn/reddit_analyzer
     cd reddit_analyzer
     ```
 
