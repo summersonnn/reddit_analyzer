@@ -121,6 +121,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
 4.  **Analyze:** Click "Analyze".
 5.  **Review Results:**  View analysis summary, ELI5 (if enabled), and notable comments on the results page.
 
+
 ## Some Information about Analysis
 
 The ef_score displayed on the analysis page is calculated by multiplying a comment’s score by its depth, where depth = 1 indicates a root comment (one without a parent). This approach highlights comment quality more effectively than just using raw scores, as upvoting a deeply nested comment is somewhat less common (!), I suppose.
