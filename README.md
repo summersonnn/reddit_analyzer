@@ -92,7 +92,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
 
     **Important Notes:**  
     - Replace the placeholder values with your actual LLM provider details.  
-    - The `LOCAL_RUN='true'` setting is required for local execution.
+    - The `LOCAL_RUN='true'` setting is required for local execution. Don't confuse this with Local LLMs. You can still enter API information from inference providers (such as Openrouter). Or you can enter the config of your locally running LLM.
     - Proxies and cloud storage are not necessary for local runs, as data retrieval from Reddit generally works fine with a residential IP.  
 
     <details>
