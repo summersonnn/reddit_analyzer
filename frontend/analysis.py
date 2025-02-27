@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit.components.v1 import html
-import plotly.express as px
 import pandas as pd
 
 def analysis_page(analysis_result, sum_for_5yo, notable_comments):
