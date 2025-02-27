@@ -80,7 +80,7 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
     LLM_API_KEY=sk-or-v1-some-example-api-key-continuation
     MODEL_NAME=meta-llama/llama-3.3-70b-instruct
     VLM_NAME=meta-llama/llama-3.2-11b-vision-instruct
-    LOCAL_CACHE_CSV_PATH=analyses.csv (in the project root folder where this readme also exists)
+    LOCAL_CACHE_CSV_PATH=analyses.csv
 
     # Optional for local run:
     # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
