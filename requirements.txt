@@ -65,6 +65,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-jose==3.3.0
 pytz==2025.2
+PyYAML>=6.0.2
 rapidfuzz==3.6.1
 referencing==0.36.2
 requests==2.32.3
