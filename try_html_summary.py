@@ -2,15 +2,13 @@ import os
 import requests
 from bs4 import BeautifulSoup
 # import time
-from dotenv import load_dotenv
 from urllib.parse import urlparse
 from llm_interact import chat_completion
-
-load_dotenv()
+import streamlit as st
 
 # Define your proxies directly here
-PROXY_HTTP = os.getenv("PROXY_HTTP")
-PROXY_HTTPS = os.getenv("PROXY_HTTPS")
+PROXY_HTTP = st.secrets.get("PROXY_HTTP", os.getenv("PROXY_HTTP"))
+PROXY_HTTPS = st.secrets.get("PROXY_HTTPS", os.getenv("PROXY_HTTPS"))
 PROXIES = {
     'http': PROXY_HTTP,
     'https': PROXY_HTTPS
