@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+# Secrets are loaded from .streamlit/secrets.toml via st.secrets (Streamlit's built-in secret management)
 import os
 import re
 import json
@@ -8,12 +8,14 @@ import streamlit as st
 import pandas as pd
 from st_files_connection import FilesConnection
 from analysis import analysis_page
-from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
+from cache_helpers import (
+    pre_filter_analyses, filter_by_params, find_best_match,
+    update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
+)
 from cache_helpers import is_local
 from analyze_main import fetch_thread_data
 
 
-load_dotenv()
 REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
 
 # Configure the default settings
@@ -86,9 +88,9 @@ st.markdown("""
 
 # Set the cache CSV path accordingly
 if is_local:
-    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH")
+    CACHE_CSV_PATH = st.secrets.get("LOCAL_CACHE_CSV_PATH", os.getenv("LOCAL_CACHE_CSV_PATH"))
 else:
-    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH")
+    CACHE_CSV_PATH = st.secrets.get("CLOUD_CACHE_CSV_PATH", os.getenv("CLOUD_CACHE_CSV_PATH"))
 
 
 def home_page():
@@ -129,7 +131,13 @@ def home_page():
     st.markdown("---")  # Horizontal line for separation
 
     # URL Input - Added key and value for persistence and on_change removal
-    url = st.text_input("Enter Reddit Thread URL", placeholder="https://www.reddit.com/r/example/comments/...", value=st.session_state.url, key="url_input", on_change=on_url_change) 
+    url = st.text_input(
+        "Enter Reddit Thread URL",
+        placeholder="https://www.reddit.com/r/example/comments/...",
+        value=st.session_state.url,
+        key="url_input",
+        on_change=on_url_change
+    )
     st.session_state.url = url
 
     st.markdown("---")  # Horizontal line for separation
@@ -180,7 +188,11 @@ def home_page():
         # Dropdown for tone selection
         tone = st.selectbox(
             "Summary Tone:",
-            ["Teacher", "Foulmouthed", "Cut the Bullshit", "Clickbaiter Youtuber", "Chill Bro", "Valley Girl", "Motivational Speaker", "Pirate", "Time Traveler", "Zen Master"],
+            [
+                "Teacher", "Foulmouthed", "Cut the Bullshit", "Clickbaiter Youtuber",
+                "Chill Bro", "Valley Girl", "Motivational Speaker", "Pirate",
+                "Time Traveler", "Zen Master"
+            ],
             index=0,  # Default to "Teacher"
             key="tone_selector"
         )
@@ -263,7 +275,9 @@ def home_page():
                 all_analyses = None
 
             # Perform filtering and analysis logic
-            filtered_analyses, core_indices = pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone)
+            filtered_analyses, core_indices = pre_filter_analyses(
+                all_analyses, all_thread_data, summary_focus, summary_length, tone
+            )
 
             if filtered_analyses.empty:
                 add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
@@ -275,7 +289,9 @@ def home_page():
             else:
                 # Filter by image/external parameters
                 add_status("Found a match in cache. Checking if settings are same too and it's recent enough...", "🔍")
-                param_filtered, param_indices = filter_by_params(filtered_analyses, core_indices, image=analyze_image, external=search_external)
+                param_filtered, param_indices = filter_by_params(
+                    filtered_analyses, core_indices, image=analyze_image, external=search_external
+                )
 
                 if param_filtered.empty:
                     add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
@@ -304,7 +320,10 @@ def home_page():
                         # Wanted eli5 but cache doesn't have it
                         if include_eli5 and not sum_for_5yo:
                             add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
-                            sum_for_5yo = generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
+                            sum_for_5yo = generate_eli5_summary(
+                                all_thread_data, summary_focus, summary_length, tone,
+                                analyze_image, search_external, max_comments
+                            )
                             update_eli5_in_cache(
                                 conn if not is_local else None,  # Pass None for local mode
                                 all_analyses, sum_for_5yo, cache_index
@@ -329,6 +348,7 @@ def home_page():
             st.session_state.page = "analysis"
             st.rerun()
 
+
 def main():
     try:
         if 'page' not in st.session_state:
@@ -336,20 +356,26 @@ def main():
 
         if st.session_state.page == "home":
             home_page()
-        elif 'analysis_result' in st.session_state and st.session_state.analysis_result is not None:  # Check for analysis result
-            analysis_page(st.session_state.analysis_result, st.session_state.sum_for_5yo, st.session_state.notable_comments)
-        else: # Handle case of opening /analysis directly
+        elif ('analysis_result' in st.session_state and
+               st.session_state.analysis_result is not None):  # Check for analysis result
+            analysis_page(
+                st.session_state.analysis_result,
+                st.session_state.sum_for_5yo,
+                st.session_state.notable_comments
+            )
+        else:  # Handle case of opening /analysis directly
             st.error("No analysis to display. Please go to the Home page and enter a URL.")
             if st.button("Go to Home"):
                 st.session_state.page = 'home'
                 st.rerun()
 
-    except Exception as e:
+    except Exception:  # Remove unused variable 'e'
         # 1. Log the error (VERY IMPORTANT!)
         st.error("An unexpected error occurred.  Please try again later. ")  # User-friendly message
         traceback.print_exc()  # Log the FULL traceback to console (or file)
         # Stop further execution.  Essential to prevent the default Streamlit error handler from showing the code.
         st.stop()
+
 
 # Clear previous results when URL changes (keep this, but outside the try block)
 def on_url_change():

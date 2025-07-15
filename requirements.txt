@@ -10,7 +10,6 @@ openai
 pandas==2.2.3
 protobuf==5.29.2
 pyOpenSSL==24.3.0
-python-dotenv==1.0.1
 PyYAML==6.0.2
 requests==2.32.3
 s3fs==2025.2.0
