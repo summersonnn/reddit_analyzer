@@ -36,11 +36,16 @@ dtype_mapping = {
 
 def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_length, tone):
     """
-    Pre-filters analyses based on URL, focus, length and tone.
+    Pre-filters analyses based on URL, summary focus, length, and tone.
     Returns empty DataFrame and empty indices list if no matches.
     Returns:
     Tuple of (Filtered DataFrame of potential matches, list of indices in original DataFrame)
     """
+    # Handle case where no cache file exists
+    if all_analyses is None:
+        print("No cache file found. Starting fresh analysis.")
+        return pd.DataFrame(), []
+    
     # Ensure correct types in the DataFrame
     for col, dtype in dtype_mapping.items():
         if col in all_analyses.columns:
@@ -172,7 +177,11 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
         all_analyses.iloc[replaceIndex] = new_df.iloc[0]
         updated_df = all_analyses
     else:
-        updated_df = pd.concat([all_analyses, new_df], ignore_index=True)
+        # Handle case where all_analyses is None (no cache file exists)
+        if all_analyses is None:
+            updated_df = new_df
+        else:
+            updated_df = pd.concat([all_analyses, new_df], ignore_index=True)
     
     # Ensure types are correct in the final DataFrame
     for col, dtype in dtype_mapping.items():
