@@ -139,63 +139,85 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     if not all_thread_data['original_post']:
         all_thread_data = fetch_thread_data(all_thread_data['url'])
         if all_thread_data['original_post'] is None:
-            return "Failed to fetch thread data. Please try again later.", None, None
+            return "Failed to fetch thread data. Please try again later.", None, [[], []]
     
-    # Perform the analysis
-    analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
-        all_thread_data, summary_focus, summary_length, tone,
-        include_eli5, analyze_image, search_external, max_comments=max_comments
-    )
-    comment_count, total_score, total_ef_score = count_all_comments(all_thread_data['comments'])
-    
-    # Create new analysis entry
-    new_analysis = {
-        'url': all_thread_data['original_post']['url'],
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'summary_focus': summary_focus,
-        'summary_length': summary_length,
-        'tone': tone,
-        'include_eli5': include_eli5,
-        'analyze_image': analyze_image,
-        'search_external': search_external,
-        'number_of_comments': comment_count,
-        'total_score': total_score,
-        'total_ef_score': total_ef_score,
-        'analysis_result': analysis_result,
-        'eli5_summary': sum_for_5yo if sum_for_5yo else "",
-        'notable_comments': json.dumps(notable_comments),
-    }
-    print("Adding new...")
-    
-    # Create DataFrame and enforce types
-    new_df = pd.DataFrame([new_analysis])
-    for col, dtype in dtype_mapping.items():
-        if col in new_df.columns:
-            new_df[col] = new_df[col].astype(dtype)
+    try:
+        # Perform the analysis
+        analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
+            all_thread_data, summary_focus, summary_length, tone,
+            include_eli5, analyze_image, search_external, max_comments=max_comments
+        )
+        
+        # Ensure we have valid data
+        if notable_comments is None:
+            notable_comments = [[], []]
+        if analysis_result is None:
+            analysis_result = "Analysis failed. Please try again."
+        if sum_for_5yo is None:
+            sum_for_5yo = None
             
-    if replaceIndex is not None:
-        all_analyses.iloc[replaceIndex] = new_df.iloc[0]
-        updated_df = all_analyses
-    else:
-        # Handle case where all_analyses is None (no cache file exists)
-        if all_analyses is None:
-            updated_df = new_df
-        else:
-            updated_df = pd.concat([all_analyses, new_df], ignore_index=True)
+    except Exception as e:
+        print(f"Error during analysis: {e}")
+        analysis_result = f"Analysis failed: {str(e)}"
+        sum_for_5yo = None
+        notable_comments = [[], []]
     
-    # Ensure types are correct in the final DataFrame
-    for col, dtype in dtype_mapping.items():
-        if col in updated_df.columns:
-            updated_df[col] = updated_df[col].astype(dtype)
-    
-    # Write to CSV
-    if conn is None:
-        # Local mode: write to local CSV file
-        updated_df.to_csv(CACHE_CSV_PATH, index=False)
-    else:
-        # Cloud mode: write to S3 bucket
-        with conn.open(CACHE_CSV_PATH, "w") as f:
-            updated_df.to_csv(f, index=False)
+    # Only proceed with cache operations if we have valid data
+    if all_thread_data['original_post'] and all_thread_data['comments']:
+        try:
+            comment_count, total_score, total_ef_score = count_all_comments(all_thread_data['comments'])
+            
+            # Create new analysis entry
+            new_analysis = {
+                'url': all_thread_data['original_post']['url'],
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'summary_focus': summary_focus,
+                'summary_length': summary_length,
+                'tone': tone,
+                'include_eli5': include_eli5,
+                'analyze_image': analyze_image,
+                'search_external': search_external,
+                'number_of_comments': comment_count,
+                'total_score': total_score,
+                'total_ef_score': total_ef_score,
+                'analysis_result': analysis_result,
+                'eli5_summary': sum_for_5yo if sum_for_5yo else "",
+                'notable_comments': json.dumps(notable_comments),
+            }
+            print("Adding new...")
+            
+            # Create DataFrame and enforce types
+            new_df = pd.DataFrame([new_analysis])
+            for col, dtype in dtype_mapping.items():
+                if col in new_df.columns:
+                    new_df[col] = new_df[col].astype(dtype)
+                    
+            if replaceIndex is not None:
+                all_analyses.iloc[replaceIndex] = new_df.iloc[0]
+                updated_df = all_analyses
+            else:
+                # Handle case where all_analyses is None (no cache file exists)
+                if all_analyses is None:
+                    updated_df = new_df
+                else:
+                    updated_df = pd.concat([all_analyses, new_df], ignore_index=True)
+            
+            # Ensure types are correct in the final DataFrame
+            for col, dtype in dtype_mapping.items():
+                if col in updated_df.columns:
+                    updated_df[col] = updated_df[col].astype(dtype)
+            
+            # Write to CSV
+            if conn is None:
+                # Local mode: write to local CSV file
+                updated_df.to_csv(CACHE_CSV_PATH, index=False)
+            else:
+                # Cloud mode: write to S3 bucket
+                with conn.open(CACHE_CSV_PATH, "w") as f:
+                    updated_df.to_csv(f, index=False)
+        except Exception as e:
+            print(f"Error writing to cache: {e}")
+            # Continue without caching
     
     return analysis_result, sum_for_5yo, notable_comments
 
