@@ -1,26 +1,11 @@
 # Secrets are loaded from .streamlit/secrets.toml via st.secrets (Streamlit's built-in secret management)
 import os
 import re
-import json
 import traceback
 
 import streamlit as st
-import pandas as pd
-
-try:
-    from st_files_connection import FilesConnection
-    FILES_CONNECTION_AVAILABLE = True
-except ImportError:
-    # If st_files_connection is not available, we'll handle S3 connections differently
-    FilesConnection = None
-    FILES_CONNECTION_AVAILABLE = False
-
 from analysis import analysis_page
-from cache_helpers import (
-    pre_filter_analyses, filter_by_params, find_best_match,
-    update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
-)
-from cache_helpers import is_local
+from cache_helpers import perform_new_analysis
 from analyze_main import fetch_thread_data
 
 
@@ -95,6 +80,8 @@ st.markdown("""
 # is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"
 
 # Set the cache CSV path accordingly
+# Disable caching for Streamlit Cloud deployment
+is_local = False  # Force cloud mode to avoid file system issues
 if is_local:
     CACHE_CSV_PATH = st.secrets.get("LOCAL_CACHE_CSV_PATH", os.getenv("LOCAL_CACHE_CSV_PATH"))
 else:
@@ -243,7 +230,6 @@ def home_page():
     st.markdown("---")  # Horizontal line for separation
 
     if st.button("Put Midori to work!", key="analyze_button"):
-        best_match_time = None
         # Add status message container at the start
         status_container = st.container()
 
@@ -264,99 +250,19 @@ def home_page():
 
             all_thread_data = fetch_thread_data(url)
 
-            try:
-                # Read cache depending on whether we're in local mode or not
-                if is_local:
-                    # Local mode: read from local CSV file
-                    all_analyses = pd.read_csv(CACHE_CSV_PATH)
-                    add_status(f"Read {len(all_analyses)} analyses from local cache", "📚")
-                else:
-                    # Cloud mode: read from S3 bucket
-                    # This also requires AWS credentials to be set up in .streamlit/secrets.toml
-                    if FILES_CONNECTION_AVAILABLE:
-                        conn = st.connection('s3', type=FilesConnection)
-                        all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
-                        add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
-                    else:
-                        add_status("S3 connection not available. Starting new analysis...", "⚠️")
-                        all_analyses = None
-
-            except Exception as e:
-                print(e)
-                add_status("Error reading existing analyses. Starting new analysis...", "⚠️")
-                all_analyses = None
-
-            # Perform filtering and analysis logic
-            filtered_analyses, core_indices = pre_filter_analyses(
-                all_analyses, all_thread_data, summary_focus, summary_length, tone
+            # Always perform fresh analysis for Streamlit Cloud
+            add_status("Performing fresh analysis...", "🔄")
+            analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
+                None,  # No cache connection
+                all_thread_data, summary_focus, summary_length, tone, include_eli5,
+                analyze_image, search_external, max_comments, None
             )
-
-            if filtered_analyses.empty:
-                add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
-                analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                    conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
-                    all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                    analyze_image, search_external, max_comments, all_analyses
-                )
-            else:
-                # Filter by image/external parameters
-                add_status("Found a match in cache. Checking if settings are same too and it's recent enough...", "🔍")
-                param_filtered, param_indices = filter_by_params(
-                    filtered_analyses, core_indices, image=analyze_image, external=search_external
-                )
-
-                if param_filtered.empty:
-                    add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
-                    cache_index = core_indices[0]
-                    analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                        conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
-                        all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                        analyze_image, search_external, max_comments, all_analyses, cache_index
-                    )
-                else:
-                    best_match, cache_index = find_best_match(param_filtered, param_indices, all_thread_data)
-
-                    if best_match is not None:
-                        add_status("Cache can be used for this thread. Retrieving analysis...", "🔍")
-                        best_match_dict = best_match._asdict()
-                        analysis_result = best_match_dict['analysis_result']
-                        notable_comments = json.loads(best_match_dict['notable_comments'])
-
-                        # Handle potential "nan" value for eli5_summary
-                        sum_for_5yo = best_match_dict.get('eli5_summary', None)
-                        if isinstance(sum_for_5yo, str) and sum_for_5yo.lower() == 'nan':
-                            sum_for_5yo = None
-
-                        best_match_time = best_match_dict['timestamp']
-
-                        # Wanted eli5 but cache doesn't have it
-                        if include_eli5 and not sum_for_5yo:
-                            add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
-                            sum_for_5yo = generate_eli5_summary(
-                                all_thread_data, summary_focus, summary_length, tone,
-                                analyze_image, search_external, max_comments
-                            )
-                            update_eli5_in_cache(
-                                conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
-                                all_analyses, sum_for_5yo, cache_index
-                            )
-                            st.success("Retrieved existing analysis and generated ELI5 summary!")
-                        else:
-                            st.success("Retrieved existing analysis!")
-                    else:
-                        add_status("Cached thread was not recent enough. Performing new analysis...", "🔄")
-                        cache_index = param_indices[0]
-                        analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                            conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
-                            all_thread_data, summary_focus, summary_length, tone, include_eli5,
-                            analyze_image, search_external, max_comments, all_analyses, cache_index
-                        )
 
             # Update session state
             st.session_state.analysis_result = analysis_result
             st.session_state.sum_for_5yo = sum_for_5yo
             st.session_state.notable_comments = notable_comments
-            st.session_state.cache_time = best_match_time if best_match_time else None
+            st.session_state.cache_time = None  # No cache time for fresh analysis
             st.session_state.page = "analysis"
             st.rerun()
 
