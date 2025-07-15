@@ -110,6 +110,37 @@ If uv is not already installed:
 
     Access the application in your browser. I disabled auto e-mail asking of streamlit but if it asks anyway, just type some dummy e-mail.
 
+## Caching System
+
+The application uses a sophisticated caching system to improve performance and reduce API costs:
+
+### Local Caching
+- **Default Mode**: When `LOCAL_RUN='true'`, analyses are cached locally in a CSV file.
+- **Cache Location**: Specified by `LOCAL_CACHE_CSV_PATH` in your `.env` file.
+- **Benefits**: Faster repeated analyses and reduced API calls.
+
+### S3 Cloud Caching
+- **Cloud Mode**: When `LOCAL_RUN='false'`, analyses are stored in an S3 bucket.
+- **Configuration**: Requires AWS credentials in `.streamlit/secrets.toml`:
+  ```toml
+  AWS_ACCESS_KEY_ID = "your_access_key"
+  AWS_SECRET_ACCESS_KEY = "your_secret_key"
+  AWS_DEFAULT_REGION = "your_region"
+  CLOUD_CACHE_CSV_PATH = "your-bucket/analyses.csv"
+  ```
+- **Benefits**: Shared cache across deployments, persistent storage, and scalability.
+
+### Cache Behavior
+- **Smart Matching**: The system checks for existing analyses based on URL, summary focus, length, and tone.
+- **Parameter Filtering**: Additional filtering by image analysis, external link search, and comment count settings.
+- **Freshness Check**: Cached analyses are only used if they're recent enough (configurable).
+- **Graceful Fallback**: If S3 connection is unavailable, the app continues with new analyses.
+
+### Cache Management
+- **Automatic Updates**: When settings change, new analyses are performed and cached.
+- **ELI5 Generation**: If an analysis exists but lacks an ELI5 summary, it's generated on-demand.
+- **Storage Optimization**: Old analyses are automatically managed to prevent excessive storage use.
+
 ## Usage
 
 1.  **Enter Reddit URL:** Input the thread URL on the homepage.
@@ -121,7 +152,7 @@ If uv is not already installed:
 
 ## Some Information about Analysis
 
-The ef_score displayed on the analysis page is calculated by multiplying a comment’s score by its depth, where depth = 1 indicates a root comment (one without a parent). This approach highlights comment quality more effectively than just using raw scores, as upvoting a deeply nested comment is somewhat less common (!), I suppose.
+The ef_score displayed on the analysis page is calculated by multiplying a comment's score by its depth, where depth = 1 indicates a root comment (one without a parent). This approach highlights comment quality more effectively than just using raw scores, as upvoting a deeply nested comment is somewhat less common (!), I suppose.
 
 ### Comment Ranking System  
 
@@ -137,17 +168,4 @@ The ef_score displayed on the analysis page is calculated by multiplying a comme
 - External links are searched for additional context only if the website does not require JavaScript or has no strict protections. Links to GitHub and Hugging Face work, but X links do not. PDF summaries are also unavailable. This feature wasn't a primary focus, as it's just an extra addition rather than a core part of the project. Therefore I didn't spend much time on it.
 
 - Images and GIFs in comments appear as links in the Best/Important comments section, allowing users to click and view them. However, they will not be displayed on the analysis page.
-
-## Contributing
-
-Feel free to contribute in any way. Bug fixes are welcomed.
-Also looking for good system prompts for new tones!
-
-## License
-
-This project is licensed under the **MIT License**. See `LICENSE` for details.
-
-## Questions or Issues
-
-For questions, bug reports, or feature requests, please open an issue on GitHub.
 

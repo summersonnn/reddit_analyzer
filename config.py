@@ -1,4 +1,9 @@
-import yaml
+try:
+    import yaml
+except ImportError:
+    raise ImportError(
+        "PyYAML is required but not installed. Please install it with: pip install PyYAML"
+    )
 
 prompt_file_path = "prompts.yaml"
 
