@@ -22,22 +22,36 @@ from try_html_summary import generate_summary
 def fetch_thread_data(url: str) -> Dict:
     max_retries = 3
     is_local = os.getenv('LOCAL_RUN', 'false').lower() == 'true'
+    
+    print(f"Fetching thread data for URL: {url}")
+    print(f"LOCAL_RUN: {is_local}")
+    print(f"Max retries: {max_retries}")
 
     for attempt in range(max_retries):
         try:
             use_proxy = not is_local or (is_local and attempt == max_retries - 1)
             if is_local and attempt == max_retries - 1:
                 print("Final attempt - trying with proxy...")
-
+            
+            print(f"Attempt {attempt + 1}: use_proxy={use_proxy}")
+            
             json_response = fetch_json_response(url, use_proxy=use_proxy)
-
-            # Check if the response is an error message
+            
+            print(f"JSON response type: {type(json_response)}")
             if isinstance(json_response, str):
+                print(f"Error response: {json_response}")
                 raise Exception(json_response)
+            elif isinstance(json_response, dict):
+                print(f"Success! Response keys: {list(json_response.keys())}")
+            else:
+                print(f"Unexpected response type: {type(json_response)}")
 
             title, original_post = return_OP(json_response)
-            # print(title)
+            print(f"Title extracted: {title is not None}")
+            print(f"Original post extracted: {original_post is not None}")
+            
             comments = return_comments(json_response)
+            print(f"Comments extracted: {len(comments) if comments else 0} comments")
 
             all_data = {
                 "title": title,
@@ -45,14 +59,20 @@ def fetch_thread_data(url: str) -> Dict:
                 "comments": comments,
                 'url': url
             }
+            print(f"Thread data successfully created with keys: {list(all_data.keys())}")
             return all_data
 
         except Exception as e:
             print(f"Error on attempt {attempt + 1}: {e}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            traceback.print_exc()
             if attempt < max_retries - 1:
                 delay = random.randint(1, 15)
+                print(f"Waiting {delay} seconds before retry...")
                 time.sleep(delay)
     
+    print("All attempts failed. Returning error data.")
     all_data = {
         "title": None,
         "original_post": None,

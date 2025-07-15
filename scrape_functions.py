@@ -12,6 +12,8 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     
     Query parameters (including the '?' character) are removed from the URL before processing.
     """
+    print(f"fetch_json_response called with url: {url}, use_proxy: {use_proxy}")
+    
     # Remove query parameters from the URL
     parsed_url = urlparse(url)
     url = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
@@ -19,6 +21,8 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     # Ensure the URL ends with '.json'
     if not url.endswith('.json'):
         url += '.json'
+    
+    print(f"Final URL: {url}")
 
     # Get the custom user agent from the environment, or use a default.
     custom_user_agent = os.getenv("CUSTOM_USER_AGENT")
@@ -28,27 +32,46 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
             '(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         )
     }
+    print(f"User-Agent: {headers['User-Agent']}")
 
     proxies = None
     if use_proxy:
         http_proxy = os.getenv("PROXY_HTTP")
         https_proxy = os.getenv("PROXY_HTTPS")
+        print(f"Proxy settings - HTTP: {http_proxy}, HTTPS: {https_proxy}")
         if http_proxy or https_proxy:  # Only set proxies if they are actually defined
             proxies = {
                 'http': http_proxy,
                 'https': https_proxy
             }
+            print(f"Using proxies: {proxies}")
+        else:
+            print("No proxy environment variables found")
 
     try:
-        response = requests.get(url, headers=headers, proxies=proxies)
+        print(f"Making request to: {url}")
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=30)
+        print(f"Response status code: {response.status_code}")
+        print(f"Response headers: {dict(response.headers)}")
+        
         response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-        return response.json()
+        
+        json_data = response.json()
+        print(f"Successfully parsed JSON response")
+        return json_data
+        
     except requests.exceptions.RequestException as e:
-        return f"Error: Request failed with exception: {e}"
+        error_msg = f"Error: Request failed with exception: {e}"
+        print(error_msg)
+        return error_msg
     except ValueError as e:  # json.decoder.JSONDecodeError in Python 3.6+ is ValueError
-        return f"Error: Invalid JSON response: {e}"  # Handle cases where the response isn't valid JSON
+        error_msg = f"Error: Invalid JSON response: {e}"  # Handle cases where the response isn't valid JSON
+        print(error_msg)
+        return error_msg
     except Exception as e:
-        return f"Error fetching JSON response: {e}"
+        error_msg = f"Error fetching JSON response: {e}"
+        print(error_msg)
+        return error_msg
 
 
 def return_OP(json_data):
