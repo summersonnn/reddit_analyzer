@@ -18,8 +18,8 @@ REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
 
 # Configure the default settings
 st.set_page_config(
-    page_title="URL Analyzer",
-    page_icon="🔍",
+    page_title="Midori Reddit",
+    page_icon="frontend/images/favicon.ico",
     layout="wide"
 )
 
@@ -35,8 +35,8 @@ st.markdown("""
         }
         .header-text {
             color: #1f1f1f;
-            font-size: 2.3rem;
-            font-weight: 600;
+            font-size: 3.5rem;
+            font-weight: 700;
             margin-bottom: 0.8rem;
         }
         .subheader-text {
@@ -90,14 +90,31 @@ if is_local:
 else:
     CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH")
 
+
 def home_page():
-    # Header
-    st.markdown("""
-        <div class="main-header">
-            <p class="header-text">🔍 URL Analyzer</p>
-            <p class="subheader-text">Analyze a Reddit thread with an LLM</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # Header with logo
+    col1, col2 = st.columns([1, 3])
+
+    with col1:
+        st.image("frontend/images/pose_1.png", width=150)
+
+    with col2:
+        st.markdown("""
+            <div class="main-header">
+                <p class="header-text">💬 Midori Reddit</p>
+                <p class="subheader-text">Analyze a Reddit thread with an LLM</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Sidebar with graphics (optional)
+    with st.sidebar:
+        st.markdown("### 🎯 How Midori Reddit works")
+        # Example: st.image("frontend/graphics/process-flow.png", use_column_width=True)
+        st.markdown("""
+        1. **Paste** a Reddit URL
+        2. **Choose** your analysis options
+        3. **Get** AI-powered insights
+        """)
 
     if "summary_focus" not in st.session_state:
         st.session_state.summary_focus = "General Summary"  # Default value
@@ -155,7 +172,7 @@ def home_page():
         summary_length = st.selectbox(
             "Summary Length:",
             ["Short", "Medium", "Long"],
-            index=1 # Default to "Medium"
+            index=1  # Default to "Medium"
         )
         st.session_state.summary_length = summary_length
 
@@ -198,14 +215,14 @@ def home_page():
             # Maximum number of important comments selection
             max_comments = st.selectbox(
                 "Maximum number of best/important comments to show in the analysis page",
-                options=range(3,11),
+                options=range(3, 11),
                 index=2,  # Default to 5 (index 2 corresponds to value 5)
                 key="max_comments"
             )
 
     st.markdown("---")  # Horizontal line for separation
 
-    if st.button("Analyze", key="analyze_button"):
+    if st.button("Put Midori to work!", key="analyze_button"):
         best_match_time = None
         # Add status message container at the start
         status_container = st.container()

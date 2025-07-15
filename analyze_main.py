@@ -18,6 +18,7 @@ from thread_analysis_functions import (
 )
 from try_html_summary import generate_summary
 
+
 def fetch_thread_data(url: str) -> Dict:
     max_retries = 3
     is_local = os.getenv('LOCAL_RUN', 'false').lower() == 'true'

@@ -1,14 +1,10 @@
-# Reddit Thread Analyzer 🔍
+# Midori Reddit Analyzer 🔍
 
-[![Streamlit App](https://img.shields.io/badge/Streamlit-App-orange?style=flat-square&logo=streamlit)](https://streamlit.io/)
-[![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-
-<br />
+This is a fork of [Reddit Analyzer](https://github.com/summersonnn/reddit_analyzer) by Summersonnn
 
 This project leverages LLMs to analyze Reddit threads, offering concise summaries and key insights. It helps users grasp lengthy discussions quickly. For an entertaining learning experience, try selecting one of the humorous tones! This project is intended purely for educational purposes, with the main goal of avoiding the need to spend half an hour reading an entire thread.
 
-The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.app) which you can try. It uses LLama 3.3-70B-instruct as the LLM and llama-3.2-11b-vision-instruct as VLM.
+The original project is also hosted free [here](https://reddit-thread-analyzer.streamlit.app) which you can try. It uses LLama 3.3-70B-instruct as the LLM and llama-3.2-11b-vision-instruct as VLM.
 
 [Watch the video](https://www.youtube.com/watch?v=ukPT68vi4m4)
 
@@ -39,22 +35,21 @@ The project is also hosted free [here](https://reddit-thread-analyzer.streamlit.
 1.  **Clone Repository:**
 
     ```bash
-    git clone https://github.com/summersonnn/reddit_analyzer
-    cd reddit_analyzer
+    git clone https://github.com/codetricity/midori_reddit
+    cd midori reddit
     ```
 
-2.  **Virtual Environment (Recommended):**
+2.  **Virtual Environment with uv (Recommended):**
 
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # Linux/macOS
-    venv\Scripts\activate  # Windows
-    ```
+If uv is not already installed:
+`curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+`uv venv`
 
 3.  **Install Dependencies:**
 
     ```bash
-    pip install -r requirements.txt
+    uv pip install -r requirements.txt
     ```
 
 4.  **Configuration (`.env` file):**
