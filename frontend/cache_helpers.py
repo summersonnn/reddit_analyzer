@@ -143,21 +143,36 @@ def perform_new_analysis(conn, all_thread_data, summary_focus, summary_length, t
     
     try:
         # Perform the analysis
+        print(f"Starting analysis with focus: {summary_focus}, length: {summary_length}, tone: {tone}")
+        print(f"Thread data keys: {list(all_thread_data.keys())}")
+        print(f"Original post exists: {all_thread_data.get('original_post') is not None}")
+        print(f"Comments count: {len(all_thread_data.get('comments', []))}")
+        
         analysis_result, sum_for_5yo, notable_comments = analyze_reddit_thread(
             all_thread_data, summary_focus, summary_length, tone,
             include_eli5, analyze_image, search_external, max_comments=max_comments
         )
         
+        print(f"Analysis completed. Result length: {len(analysis_result) if analysis_result else 0}")
+        print(f"ELI5 summary exists: {sum_for_5yo is not None}")
+        print(f"Notable comments structure: {type(notable_comments)}")
+        
         # Ensure we have valid data
         if notable_comments is None:
+            print("WARNING: notable_comments is None, setting to empty lists")
             notable_comments = [[], []]
         if analysis_result is None:
+            print("WARNING: analysis_result is None, setting to error message")
             analysis_result = "Analysis failed. Please try again."
         if sum_for_5yo is None:
+            print("WARNING: sum_for_5yo is None")
             sum_for_5yo = None
             
     except Exception as e:
-        print(f"Error during analysis: {e}")
+        print(f"ERROR during analysis: {e}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         analysis_result = f"Analysis failed: {str(e)}"
         sum_for_5yo = None
         notable_comments = [[], []]

@@ -250,6 +250,14 @@ def home_page():
 
             all_thread_data = fetch_thread_data(url)
 
+            # Debug: Check environment and secrets
+            print(f"Environment check:")
+            print(f"  - LOCAL_RUN: {os.getenv('LOCAL_RUN', 'not set')}")
+            print(f"  - Available secrets: {list(st.secrets.keys()) if hasattr(st.secrets, 'keys') else 'no secrets'}")
+            print(f"  - Thread data fetched: {all_thread_data is not None}")
+            if all_thread_data:
+                print(f"  - Thread data keys: {list(all_thread_data.keys())}")
+
             # Always perform fresh analysis for Streamlit Cloud
             add_status("Performing fresh analysis...", "🔄")
             analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
