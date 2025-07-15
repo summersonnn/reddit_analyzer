@@ -2,7 +2,105 @@ import requests
 import re
 import os
 import html
+import random
+import time
 from urllib.parse import urlparse
+
+def test_reddit_access() -> bool:
+    """
+    Simple test to check if Reddit is accessible at all.
+    Returns True if accessible, False otherwise.
+    """
+    try:
+        session = requests.Session()
+        headers = {
+            'User-Agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/120.0.0.0 Safari/537.36'),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+        
+        # Try to access Reddit's main page
+        response = session.get('https://www.reddit.com/', headers=headers, timeout=10)
+        print(f"Reddit access test - Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            print("Reddit is accessible")
+            return True
+        else:
+            print(f"Reddit returned status {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"Reddit access test failed: {e}")
+        return False
+
+
+def fetch_json_response_fallback(url: str) -> dict or str:
+    """
+    Fallback function that tries alternative approaches when Reddit blocks requests.
+    This function uses more aggressive browser simulation.
+    """
+    print(f"Trying fallback approach for: {url}")
+    
+    # Remove query parameters from the URL
+    parsed_url = urlparse(url)
+    url = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+
+    # Ensure the URL ends with '.json'
+    if not url.endswith('.json'):
+        url += '.json'
+    
+    # Create a session with more realistic browser behavior
+    session = requests.Session()
+    
+    # Use a very common user agent
+    headers = {
+        'User-Agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                      'AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/120.0.0.0 Safari/537.36'),
+        'Accept': ('text/html,application/xhtml+xml,application/xml;'
+                  'q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'),
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
+        'Referer': 'https://www.reddit.com/'
+    }
+    
+    try:
+        # Add a longer delay for fallback
+        delay = random.uniform(3, 6)
+        print(f"Fallback delay: {delay:.2f} seconds")
+        time.sleep(delay)
+        
+        print(f"Making fallback request to: {url}")
+        response = session.get(url, headers=headers, timeout=45)
+        print(f"Fallback response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            json_data = response.json()
+            print("Fallback successful!")
+            return json_data
+        else:
+            error_msg = f"Fallback failed with status {response.status_code}"
+            print(error_msg)
+            return error_msg
+            
+    except Exception as e:
+        error_msg = f"Fallback request failed: {e}"
+        print(error_msg)
+        return error_msg
+
 
 def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
@@ -24,13 +122,40 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     
     print(f"Final URL: {url}")
 
-    # Get the custom user agent from the environment, or use a default.
+    # Create a session for better connection handling
+    session = requests.Session()
+    
+    # Rotate between different realistic User-Agent strings
+    user_agents = [
+        ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+         '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
+        ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+         '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
+        ('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) '
+         'Gecko/20100101 Firefox/121.0'),
+        ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
+         '(KHTML, like Gecko) Version/17.1 Safari/605.1.15'),
+        ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+         '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    ]
+    
+    # Get the custom user agent from the environment, or use a random one
     custom_user_agent = os.getenv("CUSTOM_USER_AGENT")
+    selected_user_agent = custom_user_agent if custom_user_agent else random.choice(user_agents)
+    
+    # More realistic headers that mimic a real browser
     headers = {
-        'User-Agent': custom_user_agent if custom_user_agent else (
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-        )
+        'User-Agent': selected_user_agent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0'
     }
     print(f"User-Agent: {headers['User-Agent']}")
 
@@ -49,12 +174,33 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
             print("No proxy environment variables found")
 
     try:
+        # Add a small random delay to avoid rate limiting
+        delay = random.uniform(1, 3)
+        print(f"Adding delay of {delay:.2f} seconds before request...")
+        time.sleep(delay)
+        
         print(f"Making request to: {url}")
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=30)
+        response = session.get(url, headers=headers, proxies=proxies, timeout=30)
         print(f"Response status code: {response.status_code}")
         print(f"Response headers: {dict(response.headers)}")
         
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+        # Handle different response codes
+        if response.status_code == 403:
+            error_msg = ("Error: 403 Forbidden - Reddit is blocking this request. "
+                        "This is common from cloud platforms.")
+            print(error_msg)
+            return error_msg
+        elif response.status_code == 429:
+            error_msg = "Error: 429 Too Many Requests - Rate limited by Reddit"
+            print(error_msg)
+            return error_msg
+        elif response.status_code == 404:
+            error_msg = "Error: 404 Not Found - Thread may not exist or be private"
+            print(error_msg)
+            return error_msg
+        
+        # Raise HTTPError for other bad responses (5xx)
+        response.raise_for_status()
         
         json_data = response.json()
         print(f"Successfully parsed JSON response")

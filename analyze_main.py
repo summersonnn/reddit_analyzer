@@ -3,12 +3,14 @@ import random
 import time
 import json
 import asyncio
-from typing import List, Dict
+from typing import Dict
 
 from config import prompts
 from llm_interact import async_chat_completion
 from scrape_functions import (
     fetch_json_response,
+    fetch_json_response_fallback,
+    test_reddit_access,
     return_OP,
     return_comments
 )
@@ -27,52 +29,101 @@ def fetch_thread_data(url: str) -> Dict:
     print(f"LOCAL_RUN: {is_local}")
     print(f"Max retries: {max_retries}")
 
+    # Test Reddit access first
+    print("Testing Reddit accessibility...")
+    if not test_reddit_access():
+        print("WARNING: Reddit appears to be blocked or inaccessible")
+        print("This may cause all requests to fail")
+    
+    # Try different Reddit API endpoints
+    api_endpoints = [
+        '.json',  # Standard Reddit JSON API
+        '/.json',  # Alternative format
+        '?format=json'  # Query parameter format
+    ]
+
     for attempt in range(max_retries):
-        try:
-            use_proxy = not is_local or (is_local and attempt == max_retries - 1)
-            if is_local and attempt == max_retries - 1:
-                print("Final attempt - trying with proxy...")
-            
-            print(f"Attempt {attempt + 1}: use_proxy={use_proxy}")
-            
-            json_response = fetch_json_response(url, use_proxy=use_proxy)
-            
-            print(f"JSON response type: {type(json_response)}")
-            if isinstance(json_response, str):
-                print(f"Error response: {json_response}")
-                raise Exception(json_response)
-            elif isinstance(json_response, dict):
-                print(f"Success! Response keys: {list(json_response.keys())}")
-            else:
-                print(f"Unexpected response type: {type(json_response)}")
+        for endpoint in api_endpoints:
+            try:
+                use_proxy = not is_local or (is_local and attempt == max_retries - 1)
+                if is_local and attempt == max_retries - 1:
+                    print("Final attempt - trying with proxy...")
+                
+                print(f"Attempt {attempt + 1}: use_proxy={use_proxy}, endpoint={endpoint}")
+                
+                # Construct URL with current endpoint
+                if endpoint.startswith('.'):
+                    test_url = url + endpoint
+                elif endpoint.startswith('/'):
+                    test_url = url + endpoint
+                else:
+                    test_url = url + '?' + endpoint
+                
+                json_response = fetch_json_response(test_url, use_proxy=use_proxy)
+                
+                print(f"JSON response type: {type(json_response)}")
+                if isinstance(json_response, str):
+                    print(f"Error response: {json_response}")
+                    if ("403" in json_response or 
+                        "Blocked" in json_response):
+                        print("Reddit is blocking this endpoint, trying next...")
+                        continue
+                    raise Exception(json_response)
+                elif isinstance(json_response, dict):
+                    print(f"Success! Response keys: {list(json_response.keys())}")
+                else:
+                    print(f"Unexpected response type: {type(json_response)}")
 
+                title, original_post = return_OP(json_response)
+                print(f"Title extracted: {title is not None}")
+                print(f"Original post extracted: {original_post is not None}")
+                
+                comments = return_comments(json_response)
+                print(f"Comments extracted: {len(comments) if comments else 0} comments")
+
+                all_data = {
+                    "title": title,
+                    "original_post": original_post,
+                    "comments": comments,
+                    'url': url
+                }
+                print(f"Thread data successfully created with keys: {list(all_data.keys())}")
+                return all_data
+
+            except Exception as e:
+                print(f"Error on attempt {attempt + 1}, endpoint {endpoint}: {e}")
+                print(f"Error type: {type(e)}")
+                import traceback
+                traceback.print_exc()
+                continue
+        
+        # If we get here, all endpoints failed for this attempt
+        if attempt < max_retries - 1:
+            delay = random.randint(5, 20)  # Longer delay between attempts
+            print(f"All endpoints failed for attempt {attempt + 1}. "
+                  f"Waiting {delay} seconds before retry...")
+            time.sleep(delay)
+    
+    # Final fallback attempt
+    print("Trying fallback approach...")
+    try:
+        json_response = fetch_json_response_fallback(url)
+        if isinstance(json_response, dict):
             title, original_post = return_OP(json_response)
-            print(f"Title extracted: {title is not None}")
-            print(f"Original post extracted: {original_post is not None}")
-            
             comments = return_comments(json_response)
-            print(f"Comments extracted: {len(comments) if comments else 0} comments")
-
+            
             all_data = {
                 "title": title,
                 "original_post": original_post,
                 "comments": comments,
                 'url': url
             }
-            print(f"Thread data successfully created with keys: {list(all_data.keys())}")
+            print("Fallback successful!")
             return all_data
-
-        except Exception as e:
-            print(f"Error on attempt {attempt + 1}: {e}")
-            print(f"Error type: {type(e)}")
-            import traceback
-            traceback.print_exc()
-            if attempt < max_retries - 1:
-                delay = random.randint(1, 15)
-                print(f"Waiting {delay} seconds before retry...")
-                time.sleep(delay)
+    except Exception as e:
+        print(f"Fallback also failed: {e}")
     
-    print("All attempts failed. Returning error data.")
+    print("All attempts and endpoints failed. Returning error data.")
     all_data = {
         "title": None,
         "original_post": None,
