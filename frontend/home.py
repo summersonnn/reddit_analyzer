@@ -6,7 +6,15 @@ import traceback
 
 import streamlit as st
 import pandas as pd
-from st_files_connection import FilesConnection
+
+try:
+    from st_files_connection import FilesConnection
+    FILES_CONNECTION_AVAILABLE = True
+except ImportError:
+    # If st_files_connection is not available, we'll handle S3 connections differently
+    FilesConnection = None
+    FILES_CONNECTION_AVAILABLE = False
+
 from analysis import analysis_page
 from cache_helpers import (
     pre_filter_analyses, filter_by_params, find_best_match,
@@ -265,9 +273,13 @@ def home_page():
                 else:
                     # Cloud mode: read from S3 bucket
                     # This also requires AWS credentials to be set up in .streamlit/secrets.toml
-                    conn = st.connection('s3', type=FilesConnection)
-                    all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
-                    add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
+                    if FILES_CONNECTION_AVAILABLE:
+                        conn = st.connection('s3', type=FilesConnection)
+                        all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
+                        add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
+                    else:
+                        add_status("S3 connection not available. Starting new analysis...", "⚠️")
+                        all_analyses = None
 
             except Exception as e:
                 print(e)
@@ -282,7 +294,7 @@ def home_page():
             if filtered_analyses.empty:
                 add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
                 analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                    conn if not is_local else None,  # Pass None for local mode
+                    conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
                     all_thread_data, summary_focus, summary_length, tone, include_eli5,
                     analyze_image, search_external, max_comments, all_analyses
                 )
@@ -297,7 +309,7 @@ def home_page():
                     add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
                     cache_index = core_indices[0]
                     analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                        conn if not is_local else None,  # Pass None for local mode
+                        conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
                         all_thread_data, summary_focus, summary_length, tone, include_eli5,
                         analyze_image, search_external, max_comments, all_analyses, cache_index
                     )
@@ -325,7 +337,7 @@ def home_page():
                                 analyze_image, search_external, max_comments
                             )
                             update_eli5_in_cache(
-                                conn if not is_local else None,  # Pass None for local mode
+                                conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
                                 all_analyses, sum_for_5yo, cache_index
                             )
                             st.success("Retrieved existing analysis and generated ELI5 summary!")
@@ -335,7 +347,7 @@ def home_page():
                         add_status("Cached thread was not recent enough. Performing new analysis...", "🔄")
                         cache_index = param_indices[0]
                         analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                            conn if not is_local else None,  # Pass None for local mode
+                            conn if not is_local and FILES_CONNECTION_AVAILABLE else None,  # Pass None for local mode or when S3 not available
                             all_thread_data, summary_focus, summary_length, tone, include_eli5,
                             analyze_image, search_external, max_comments, all_analyses, cache_index
                         )
