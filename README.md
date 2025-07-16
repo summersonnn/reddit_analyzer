@@ -121,33 +121,25 @@ If uv is not already installed:
     
     This will generate/update the `uv.lock` file based on your current `requirements.txt` and `pyproject.toml`.
 
-4.  **Configuration (`.env` file):**
+4.  **Configuration (`.streamlit/secrets.toml` file):**
 
-    Create `.env` in the project root with the following for local use:
+    Create `secrets.toml` in the `.streamlit` directory that is hidden in the project root with the following for local use:
 
-    ```env
-    LOCAL_RUN='true'
-    LLM_BASE_URL=YOUR_LLM_BASE_URL_HERE
-    LLM_API_KEY=YOUR_API_KEY_HERE
-    MODEL_NAME=YOUR_LLM_MODEL_NAME_HERE
-    VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME if you want to use a VLM for summarizing as well)
+    ```toml
+    LOCAL_RUN = "true"
+    LLM_BASE_URL = "https://openrouter.ai/api/v1"
+    LLM_API_KEY = "sk-or-v1-alflalkjfjafljk"
+    MODEL_NAME = "meta-llama/llama-3.3-70b-instruct"
+    VLM_NAME = "meta-llama/llama-3.2-11b-vision-instruct"
+    LOCAL_CACHE_CSV_PATH = "analyses.csv"
 
-    # Optional for local run:
-    # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
-    # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
-    ```
 
-    Example:
-    ```env
-    LOCAL_RUN='true'
-    LLM_BASE_URL=https://openrouter.ai/api/v1
-    LLM_API_KEY=sk-or-v1-some-example-api-key-continuation
-    MODEL_NAME=meta-llama/llama-3.3-70b-instruct
-    VLM_NAME=meta-llama/llama-3.2-11b-vision-instruct
+    # Reddit API credentials (for PRAW)
+    REDDIT_CLIENT_ID = "valfadjfdsaj..."
+    REDDIT_CLIENT_SECRET = "w-gdljaflaljdf..."
+    REDDIT_USER_AGENT = "NameOfRedditApp"
 
-    # Optional for local run:
-    # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
-    # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
+    APP_PASSWORD = "LoginPassword"
     ```
 
 
@@ -173,8 +165,6 @@ If uv is not already installed:
 
     Access the application in your browser. I disabled auto e-mail asking of streamlit but if it asks anyway, just type some dummy e-mail.
 
-
-
 ## Usage
 
 1.  **Enter Reddit URL:** Input the thread URL on the homepage.
@@ -183,10 +173,9 @@ If uv is not already installed:
 4.  **Analyze:** Click "Analyze".
 5.  **Review Results:**  View analysis summary, ELI5 (if enabled), and notable comments on the results page.
 
-
 ## Some Information about Analysis
 
-The ef_score displayed on the analysis page is calculated by multiplying a comment's score by its depth, where depth = 1 indicates a root comment (one without a parent). This approach highlights comment quality more effectively than just using raw scores, as upvoting a deeply nested comment is somewhat less common (!), I suppose.
+The ef_score displayed on the analysis page is calculated by multiplying a comment's score by its depth, where depth = 1 indicates a root comment (one without a parent). This approach highlights comment quality more effectively than just using raw scores, as upvoting a deeply nested comment is somewhat less common.
 
 ### Comment Ranking System  
 
@@ -202,4 +191,3 @@ The ef_score displayed on the analysis page is calculated by multiplying a comme
 - External links are searched for additional context only if the website does not require JavaScript or has no strict protections. Links to GitHub and Hugging Face work, but X links do not. PDF summaries are also unavailable. This feature wasn't a primary focus, as it's just an extra addition rather than a core part of the project. Therefore I didn't spend much time on it.
 
 - Images and GIFs in comments appear as links in the Best/Important comments section, allowing users to click and view them. However, they will not be displayed on the analysis page.
-
