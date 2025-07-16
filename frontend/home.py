@@ -173,8 +173,10 @@ def home_page():
         # Radio button for summary focus (stacked vertically)
         summary_focus_option = st.radio(
             "Choose Summary Type:",
-            ["General Summary", "Custom Summary"],
-            index=0 if st.session_state.summary_focus == "General Summary" else 1,
+            ["General Summary", "Custom Summary", "YouTube Content"],
+            index=0 if st.session_state.summary_focus == "General Summary" else (
+                1 if st.session_state.summary_focus == "Custom Summary" else 2
+            ),
             key="summary_focus_option"
         )
 
@@ -182,28 +184,43 @@ def home_page():
         # Text area for custom summary focus (allows longer input)
         if summary_focus_option == "Custom Summary":
             summary_focus = st.text_area(
-                "What the summary should focus on: (Max 300 characters, ~50 words. "
+                "Oppkey Reddit campaigns include strong reporting to show "
+                "the quantifiable value of our client's spend. "
+                "Custom instructions can produce reports for clients or "
+                "internal strategy meetings. "
                 "Examples: Technical breakdown of the main arguments, "
-                "Show 10 video topics made from the comments with two "
-                "points for each video topic. "
                 "community sentiment and reactions, "
                 "future predictions and implications, etc.):",
-                value=st.session_state.summary_focus if st.session_state.summary_focus != "General Summary" else "",
+                value=st.session_state.summary_focus if (
+                    st.session_state.summary_focus != "General Summary" and 
+                    st.session_state.summary_focus != "YouTube Content"
+                ) else "",
                 max_chars=300,
                 height=100,
                 key="summary_focus_input"
             )
-        else:
-            summary_focus = "General Summary"
-            st.text_area(
-                "What the summary should focus on: (Max 300 characters, ~50 words. "
-                "Examples: Technical breakdown of the main arguments, community sentiment and reactions, "
-                "future predictions and implications, etc.):",
-                value="General Summary",
+        elif summary_focus_option == "YouTube Content":
+            youtube_focus = st.text_area(
+                "Oppkey Reddit campaigns are often used with YouTube small influencer campaigns. "
+                "After content is posted to Reddit, Oppkey engages and develops a strategy for more "
+                "content. Midori will analyze Reddit comments and produce a recommendation for "
+                "next steps in the influencer and content marketing campaigns.",
+                value="Create 10 video topics from the comments with two points for each video topic.",
                 max_chars=300,
                 height=100,
                 key="summary_focus_input",
-                disabled=True
+                disabled=False
+            )
+            summary_focus = youtube_focus
+        else:
+            summary_focus = "General Summary"
+            st.text(
+                "Oppkey Reddit campaigns may start with posting content from our client "
+                "or from the Oppkey Developer Network. "
+                "A General Summary is a good starting point "
+                "to understand the Reddit comments and prioritize with "
+                "Midori's score. "
+                "Use Custom Summary for deeper analysis."
             )
 
     with col3:
@@ -320,9 +337,9 @@ def home_page():
                 including analyzing the comments and post to recommend
                 video topics and blog posts.
 
-                ## ef_score
+                ## Midori Score
 
-                The ef_score displayed on the analysis page is calculated by multiplying a
+                The Midori ef_score displayed on the analysis page is calculated by multiplying a
                 comment's score by its depth, where depth = 1 indicates a root comment
                 (one without a parent). This approach highlights comment quality
                 more effectively than just using raw scores, as upvoting a deeply
@@ -378,7 +395,7 @@ def main():
             if st.session_state.page == "home":
                 home_page()
             elif ('analysis_result' in st.session_state and
-                   st.session_state.analysis_result is not None):  # Check for analysis result
+                  st.session_state.analysis_result is not None):  # Check for analysis result
                 analysis_page(
                     st.session_state.analysis_result,
                     st.session_state.sum_for_5yo,
