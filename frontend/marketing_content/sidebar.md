@@ -1,14 +1,14 @@
-# Login Page Sidebar
-
-## Welcome to Midori Reddit!
+# Welcome to Midori Reddit!
 
 This application allows you to analyze Reddit threads using AI-powered insights.
 
-**What you can do:**
-- Analyze Reddit comment threads
-- Get AI-generated summaries
-- View sentiment analysis
-- Identify key insights and trends
+- **Start real:** Original post from Oppkey Developer Network publishes candid technical information to Reddit
+
+- **Listen at scale:** Midori Reddit mines post thread for themes, pain points, sentiment, and priority scores.
+
+- **Turn signal into assets:** Produce related posts on Reddit or outside channels like blogs, docs updates, tutorials, or videos mapped to developer needs based on Reddit thread information.
+
+- **Outcome:** Authentic engagement, quicker mid‑funnel movement, trust that marketing alone can’t buy.
 
 **Need access?**
 Contact Jesse Casman for your login credentials.
@@ -17,10 +17,9 @@ Contact Jesse Casman for your login credentials.
 
 ### 📊 Features
 
-- **General Summaries**: Quick overview of thread content
-- **Custom Analysis**: Tailored reports for specific needs
-- **YouTube Content**: Video topic recommendations
-- **Multiple Tones**: Choose your preferred analysis style
+- **General Summaries**: Quick overview of Reddit thread content
+- **Custom Analysis**: Tailored reports for specific client needs
+- **YouTube Content**: Video topic recommendations for building more content
 
 ---
 
