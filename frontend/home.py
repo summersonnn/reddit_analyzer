@@ -73,6 +73,16 @@ st.markdown("""
             border-radius: 0.5rem;
             padding: 0.5rem;
         }
+
+        /* Login form styling */
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f8f9fa;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -86,6 +96,23 @@ if is_local:
     CACHE_CSV_PATH = st.secrets.get("LOCAL_CACHE_CSV_PATH", os.getenv("LOCAL_CACHE_CSV_PATH"))
 else:
     CACHE_CSV_PATH = st.secrets.get("CLOUD_CACHE_CSV_PATH", os.getenv("CLOUD_CACHE_CSV_PATH"))
+
+
+def login():
+    """Simple login function"""
+    st.title("🔐 Midori Reddit Login")
+    st.write("Please enter your password to access the application")
+    
+    # Get password from secrets or environment variable
+    password = st.secrets.get("APP_PASSWORD", os.getenv("APP_PASSWORD", "midori2025"))
+    
+    user_password = st.text_input("Enter password:", type="password")
+    if user_password == password:
+        st.session_state["authenticated"] = True
+        st.success("Login successful!")
+        st.rerun()
+    elif user_password:
+        st.error("Incorrect password")
 
 
 def home_page():
@@ -260,7 +287,7 @@ def home_page():
             all_thread_data = fetch_thread_data(url)
 
             # Debug: Check environment and secrets
-            print(f"Environment check:")
+            print("Environment check:")
             print(f"  - LOCAL_RUN: {os.getenv('LOCAL_RUN', 'not set')}")
             print(f"  - Available secrets: {list(st.secrets.keys()) if hasattr(st.secrets, 'keys') else 'no secrets'}")
             print(f"  - Thread data fetched: {all_thread_data is not None}")
@@ -329,23 +356,39 @@ def home_page():
 
 def main():
     try:
-        if 'page' not in st.session_state:
-            st.session_state.page = "home"
+        # Initialize authentication state
+        if "authenticated" not in st.session_state:
+            st.session_state["authenticated"] = False
 
-        if st.session_state.page == "home":
-            home_page()
-        elif ('analysis_result' in st.session_state and
-               st.session_state.analysis_result is not None):  # Check for analysis result
-            analysis_page(
-                st.session_state.analysis_result,
-                st.session_state.sum_for_5yo,
-                st.session_state.notable_comments
-            )
-        else:  # Handle case of opening /analysis directly
-            st.error("No analysis to display. Please go to the Home page and enter a URL.")
-            if st.button("Go to Home"):
-                st.session_state.page = 'home'
-                st.rerun()
+        # Check if user is authenticated
+        if not st.session_state["authenticated"]:
+            login()
+        else:
+            # Add logout button in sidebar
+            with st.sidebar:
+                if st.button("🚪 Logout"):
+                    st.session_state["authenticated"] = False
+                    st.session_state.pop("analysis_result", None)
+                    st.session_state.pop("page", None)
+                    st.rerun()
+
+            if 'page' not in st.session_state:
+                st.session_state.page = "home"
+
+            if st.session_state.page == "home":
+                home_page()
+            elif ('analysis_result' in st.session_state and
+                   st.session_state.analysis_result is not None):  # Check for analysis result
+                analysis_page(
+                    st.session_state.analysis_result,
+                    st.session_state.sum_for_5yo,
+                    st.session_state.notable_comments
+                )
+            else:  # Handle case of opening /analysis directly
+                st.error("No analysis to display. Please go to the Home page and enter a URL.")
+                if st.button("Go to Home"):
+                    st.session_state.page = 'home'
+                    st.rerun()
 
     except Exception:  # Remove unused variable 'e'
         # 1. Log the error (VERY IMPORTANT!)
