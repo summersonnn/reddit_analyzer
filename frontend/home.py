@@ -152,20 +152,26 @@ def home_page():
         )
 
     with col2:
-        # Text box for custom summary focus (fatter but shorter)
+        # Text area for custom summary focus (allows longer input)
         if summary_focus_option == "Custom Summary":
-            summary_focus = st.text_input(
-                "What the summary should focus on: (Max 50 characters. Examples: Technical breakdown, community sentiment, future predictions, etc.):",
+            summary_focus = st.text_area(
+                "What the summary should focus on: (Max 300 characters, ~50 words. "
+                "Examples: Technical breakdown of the main arguments, community sentiment and reactions, "
+                "future predictions and implications, etc.):",
                 value=st.session_state.summary_focus if st.session_state.summary_focus != "General Summary" else "",
-                max_chars=50,
+                max_chars=300,
+                height=100,
                 key="summary_focus_input"
             )
         else:
             summary_focus = "General Summary"
-            st.text_input(
-                "What the summary should focus on: (Max 50 characters. Examples: Technical breakdown, community sentiment, future predictions, etc.):",
+            st.text_area(
+                "What the summary should focus on: (Max 300 characters, ~50 words. "
+                "Examples: Technical breakdown of the main arguments, community sentiment and reactions, "
+                "future predictions and implications, etc.):",
                 value="General Summary",
-                max_chars=50,
+                max_chars=300,
+                height=100,
                 key="summary_focus_input",
                 disabled=True
             )
