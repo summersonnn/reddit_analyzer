@@ -100,9 +100,31 @@ else:
 
 def login():
     """Simple login function"""
-    st.title("🔐 Midori Reddit Login")
-    st.write("Please enter your password to access the application")
     
+    # Add sidebar with information from markdown file
+    with st.sidebar:
+        try:
+            with open("frontend/marketing_content/sidebar.md", "r", encoding="utf-8") as f:
+                sidebar_content = f.read()
+            
+            # Extract login page sidebar content (everything before the first "---")
+            login_sections = sidebar_content.split("---")
+            if len(login_sections) >= 2:
+                login_sidebar = login_sections[0] + "---" + login_sections[1]
+                st.markdown(login_sidebar)
+            else:
+                st.markdown("Sidebar content not found.")
+        except FileNotFoundError:
+            st.error("Sidebar content file not found. Please ensure 'frontend/marketing_content/sidebar.md' exists.")
+        except Exception as e:
+            st.error(f"Error reading sidebar content: {e}")
+    
+    st.image("frontend/images/pose_4.png", width=200)
+    st.title("Midori Reddit")
+    st.write(
+        "Please enter the password you received from Jesse Casman "
+        "to access the application.")
+
     # Get password from secrets or environment variable
     password = st.secrets.get("APP_PASSWORD", os.getenv("APP_PASSWORD", "midori2025"))
     
@@ -113,6 +135,40 @@ def login():
         st.rerun()
     elif user_password:
         st.error("Incorrect password")
+    
+    # Read and display marketing content from markdown file
+    try:
+        with open("frontend/marketing_content/main_page.md", "r", encoding="utf-8") as f:
+            marketing_content = f.read()
+        
+        # Split content by image markers and process each part
+        import re
+        
+        # Pattern to match markdown image syntax: ![alt text](path)
+        image_pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
+        
+        # Split the content by image markers
+        parts = re.split(image_pattern, marketing_content)
+        
+        # Process each part
+        for i, part in enumerate(parts):
+            if i % 3 == 0:  # This is text content
+                if part.strip():
+                    st.markdown(part)
+            elif i % 3 == 1:  # This is alt text
+                continue  # Skip alt text, we'll handle it with the image
+            elif i % 3 == 2:  # This is image path
+                try:
+                    # Extract alt text from the previous part
+                    alt_text = parts[i-1] if i > 0 else "Image"
+                    st.image(part, caption=alt_text, width=400)
+                except Exception as img_error:
+                    st.error(f"Error loading image {part}: {img_error}")
+                    
+    except FileNotFoundError:
+        st.error("Marketing content file not found. Please ensure 'frontend/marketing_content/main_page.md' exists.")
+    except Exception as e:
+        st.error(f"Error reading marketing content: {e}")
 
 
 def home_page():
@@ -132,13 +188,29 @@ def home_page():
 
     # Sidebar with graphics (optional)
     with st.sidebar:
-        st.markdown("### 🎯 How Midori Reddit works")
-        # Example: st.image("frontend/graphics/process-flow.png", use_column_width=True)
-        st.markdown("""
-        1. **Paste** a Reddit URL
-        2. **Choose** your analysis options
-        3. **Get** AI-powered insights
-        """)
+        try:
+            with open("frontend/marketing_content/sidebar.md", "r", encoding="utf-8") as f:
+                sidebar_content = f.read()
+            
+            # Extract home page sidebar content (section after "Home Page Sidebar")
+            sections = sidebar_content.split("---")
+            for i, section in enumerate(sections):
+                if "Home Page Sidebar" in section:
+                    # Get the content after "Home Page Sidebar" header
+                    home_content = section.split("Home Page Sidebar")[1].strip()
+                    st.markdown(home_content)
+                    break
+            else:
+                st.markdown("### 🎯 How Midori Reddit works")
+                st.markdown("""
+                1. **Paste** a Reddit URL
+                2. **Choose** your analysis options
+                3. **Get** AI-powered insights
+                """)
+        except FileNotFoundError:
+            st.error("Sidebar content file not found. Please ensure 'frontend/marketing_content/sidebar.md' exists.")
+        except Exception as e:
+            st.error(f"Error reading sidebar content: {e}")
 
     if "summary_focus" not in st.session_state:
         st.session_state.summary_focus = "General Summary"  # Default value

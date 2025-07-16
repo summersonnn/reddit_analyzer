@@ -8,6 +8,65 @@ The original project is also hosted free [here](https://reddit-thread-analyzer.s
 
 [Watch the video](https://www.youtube.com/watch?v=ukPT68vi4m4)
 
+## 📝 Editing Marketing Content (For Marketing Team)
+
+**Non-developers can easily edit the application's marketing content without touching any code!**
+
+### What Can Be Edited
+
+The following content can be modified by editing simple markdown files:
+
+- **Main marketing content** (login page)
+- **Sidebar content** (both login and home pages)
+- **Images** (using standard markdown image syntax)
+
+### File Locations
+
+All marketing content is located in the `frontend/marketing_content/` folder:
+
+```
+frontend/marketing_content/
+├── main_page.md    # Main marketing content (login page)
+└── sidebar.md      # Sidebar content for all pages
+```
+
+### How to Edit
+
+1. **Main Content**: Edit `frontend/marketing_content/main_page.md`
+   - Use standard markdown syntax
+   - Add images with: `![Alt text](frontend/images/image_name.png)`
+   - Available images: `businessmidori.png`, `pose_1.png` through `pose_5.png`, `ai-human.png`, etc.
+
+2. **Sidebar Content**: Edit `frontend/marketing_content/sidebar.md`
+   - Content is organized by page sections
+   - Use `---` to separate different sections
+
+### Example Edits
+
+**Adding an image:**
+```markdown
+![Midori Business](frontend/images/businessmidori.png)
+```
+
+**Updating text:**
+```markdown
+## New Section Title
+
+Your updated marketing content here.
+```
+
+### Important Notes
+
+- **No code knowledge required** - just edit the markdown files
+- **Images must be in `frontend/images/`** folder
+- **Changes take effect immediately** when you save the files
+- **Backup your changes** before making major edits
+- **Test your changes** by running the application locally
+
+### Getting Help
+
+If you need to add new images or make structural changes, contact the development team. For content updates, you can work independently using any text editor.
+
 ## Features
 
 *   **Reddit Thread Analysis:**  Accepts Reddit thread URLs for analysis.
@@ -26,7 +85,7 @@ The original project is also hosted free [here](https://reddit-thread-analyzer.s
 
 ### Prerequisites
 
-*   Python 3.9+
+*   Python 3.11+
 *   Streamlit (installed during setup)
 *   API Key for an LLM provider (e.g., OpenRouter). Or Local LLM server API (must be OpenAI compatible)
 
@@ -52,6 +111,16 @@ If uv is not already installed:
     uv pip install -r requirements.txt
     ```
 
+    **Note for Streamlit Cloud Deployment:**
+    
+    The project includes a `uv.lock` file for reproducible deployments on Streamlit Cloud. If you're installing dependencies with `uv pip install` and need to update the lock file, run:
+    
+    ```bash
+    uv lock
+    ```
+    
+    This will generate/update the `uv.lock` file based on your current `requirements.txt` and `pyproject.toml`.
+
 4.  **Configuration (`.env` file):**
 
     Create `.env` in the project root with the following for local use:
@@ -62,12 +131,10 @@ If uv is not already installed:
     LLM_API_KEY=YOUR_API_KEY_HERE
     MODEL_NAME=YOUR_LLM_MODEL_NAME_HERE
     VLM_NAME=YOUR_VLM_MODEL_NAME_HERE (can be same as the MODEL_NAME if you want to use a VLM for summarizing as well)
-    LOCAL_CACHE_CSV_PATH=CSV FILE PATH FOR LOCAL CACHE
 
     # Optional for local run:
     # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
     # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
-    # CLOUD_CACHE_CSV_PATH=reddit-links-bucket/analyses.csv
     ```
 
     Example:
@@ -77,12 +144,10 @@ If uv is not already installed:
     LLM_API_KEY=sk-or-v1-some-example-api-key-continuation
     MODEL_NAME=meta-llama/llama-3.3-70b-instruct
     VLM_NAME=meta-llama/llama-3.2-11b-vision-instruct
-    LOCAL_CACHE_CSV_PATH=analyses.csv
 
     # Optional for local run:
     # PROXY_HTTP=YOUR_HTTP_PROXY_HERE
     # PROXY_HTTPS=YOUR_HTTPS_PROXY_HERE
-    # CLOUD_CACHE_CSV_PATH=reddit-links-bucket/analyses.csv
     ```
 
 
@@ -90,56 +155,25 @@ If uv is not already installed:
     **Important Notes:**  
     - Replace the placeholder values with your actual LLM provider details.  
     - The `LOCAL_RUN='true'` setting is required for local execution. Don't confuse this with Local LLMs. You can still enter API information from inference providers (such as Openrouter). Or you can enter the config of your locally running LLM.
-    - Proxies and cloud storage are not necessary for local runs, as data retrieval from Reddit generally works fine with a residential IP.  
+    - Proxies are not necessary for local runs, as data retrieval from Reddit generally works fine with a residential IP.  
 
     <details>
-    <summary><h3><b>Using Cloud Storage or Proxies</b></h3></summary>
+    <summary><h3><b>Using Proxies</b></h3></summary>
 
-    If you ever need to set `LOCAL_RUN='false'` (for example, to use a proxy or store cached data in an S3 bucket), you'll also need to create a `secrets.toml` file inside the `.streamlit` directory in the project root. This file should contain your AWS credentials:
+    If you ever need to set `LOCAL_RUN='false'` (for example, to use a proxy), you'll also need to create a `secrets.toml` file inside the `.streamlit` directory in the project root. This file should contain your proxy credentials if required:
 
     ```env
-    AWS_ACCESS_KEY_ID = "YOUR_KEY_ID"
-    AWS_SECRET_ACCESS_KEY = "YOUR_ACCESS_KEY"
-    AWS_DEFAULT_REGION = "YOUR_REGION"
+    # Add proxy credentials here if needed
 
 5.  **Run Application:**
 
     ```bash
-    streamlit run frontend/home.py
+    uv run streamlit run frontend/home.py
     ```
 
     Access the application in your browser. I disabled auto e-mail asking of streamlit but if it asks anyway, just type some dummy e-mail.
 
-## Caching System
 
-The application uses a sophisticated caching system to improve performance and reduce API costs:
-
-### Local Caching
-- **Default Mode**: When `LOCAL_RUN='true'`, analyses are cached locally in a CSV file.
-- **Cache Location**: Specified by `LOCAL_CACHE_CSV_PATH` in your `.env` file.
-- **Benefits**: Faster repeated analyses and reduced API calls.
-
-### S3 Cloud Caching
-- **Cloud Mode**: When `LOCAL_RUN='false'`, analyses are stored in an S3 bucket.
-- **Configuration**: Requires AWS credentials in `.streamlit/secrets.toml`:
-  ```toml
-  AWS_ACCESS_KEY_ID = "your_access_key"
-  AWS_SECRET_ACCESS_KEY = "your_secret_key"
-  AWS_DEFAULT_REGION = "your_region"
-  CLOUD_CACHE_CSV_PATH = "your-bucket/analyses.csv"
-  ```
-- **Benefits**: Shared cache across deployments, persistent storage, and scalability.
-
-### Cache Behavior
-- **Smart Matching**: The system checks for existing analyses based on URL, summary focus, length, and tone.
-- **Parameter Filtering**: Additional filtering by image analysis, external link search, and comment count settings.
-- **Freshness Check**: Cached analyses are only used if they're recent enough (configurable).
-- **Graceful Fallback**: If S3 connection is unavailable, the app continues with new analyses.
-
-### Cache Management
-- **Automatic Updates**: When settings change, new analyses are performed and cached.
-- **ELI5 Generation**: If an analysis exists but lacks an ELI5 summary, it's generated on-demand.
-- **Storage Optimization**: Old analyses are automatically managed to prevent excessive storage use.
 
 ## Usage
 
