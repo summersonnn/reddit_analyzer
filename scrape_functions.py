@@ -102,11 +102,38 @@ def fetch_json_response_fallback(url: str) -> dict or str:
         return error_msg
 
 
+def normalize_reddit_url(url: str) -> str:
+    """
+    Converts any Reddit URL to the proper format for JSON API access.
+    Handles comment URLs, thread URLs, and other Reddit URL formats.
+    """
+    # Remove query parameters and fragments
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    
+    # Handle different Reddit URL formats
+    if '/comments/' in path:
+        # Extract the thread ID from the path
+        # Format: /r/subreddit/comments/thread_id/comment/comment_id/
+        parts = path.split('/')
+        if 'comments' in parts:
+            comments_index = parts.index('comments')
+            if comments_index + 1 < len(parts):
+                thread_id = parts[comments_index + 1]
+                # Reconstruct the main thread URL
+                subreddit = parts[1] if parts[1] != 'r' else parts[2]
+                normalized_url = f"https://www.reddit.com/r/{subreddit}/comments/{thread_id}/"
+                print(f"Normalized URL: {normalized_url}")
+                return normalized_url
+    
+    # If it's already a thread URL, return as is
+    return url
+
+
 def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     """
     Fetches the JSON response from the given URL using the requests package.
-    Uses proxy if specified. Uses a custom User-Agent if provided via
-    the CUSTOM_USER_AGENT environment variable; otherwise, uses a default.
+    Uses a custom User-Agent if provided via the CUSTOM_USER_AGENT environment variable.
     
     Query parameters (including the '?' character) are removed from the URL before processing.
     """
@@ -159,19 +186,20 @@ def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
     }
     print(f"User-Agent: {headers['User-Agent']}")
 
+    # Setup proxies if needed
     proxies = None
     if use_proxy:
+        # Fallback to environment variables
         http_proxy = os.getenv("PROXY_HTTP")
         https_proxy = os.getenv("PROXY_HTTPS")
-        print(f"Proxy settings - HTTP: {http_proxy}, HTTPS: {https_proxy}")
-        if http_proxy or https_proxy:  # Only set proxies if they are actually defined
+        if http_proxy or https_proxy:
             proxies = {
                 'http': http_proxy,
                 'https': https_proxy
             }
-            print(f"Using proxies: {proxies}")
+            print(f"Using fallback proxies: {proxies}")
         else:
-            print("No proxy environment variables found")
+            print("No proxy configuration found")
 
     try:
         # Add a small random delay to avoid rate limiting
@@ -234,18 +262,21 @@ def return_OP(json_data):
     """
     try:
         # Navigate through the JSON structure (same as before)
-        if not isinstance(json_data, list) or not json_data: # check if json_data is a list and not empty
+        if not isinstance(json_data, list) or not json_data:  # check if json_data is a list and not empty
             return (None, None)
 
         first_element = json_data[0]
-        if not isinstance(first_element, dict) or 'data' not in first_element: # check if first_element is a dict and has 'data' key
+        if not isinstance(first_element, dict) or 'data' not in first_element:  # check if first_element is a dict and has 'data' key
             return (None, None)
 
-        if not isinstance(first_element['data'], dict) or 'children' not in first_element['data'] or not isinstance(first_element['data']['children'], list) or not first_element['data']['children']: # check nested structure
+        if (not isinstance(first_element['data'], dict) or 
+            'children' not in first_element['data'] or 
+            not isinstance(first_element['data']['children'], list) or 
+            not first_element['data']['children']):  # check nested structure
             return (None, None)
 
         first_child = first_element['data']['children'][0]
-        if not isinstance(first_child, dict) or 'data' not in first_child: # check if first_child is dict and has data key
+        if not isinstance(first_child, dict) or 'data' not in first_child:  # check if first_child is dict and has data key
             return (None, None)
         data = first_child['data']
 
@@ -261,10 +292,11 @@ def return_OP(json_data):
 
         # Create the content dictionary (similar to comment structure)
         content_dict = {
-            'url': url, # thread link
+            'url': url,  # thread link
             'author': data.get('author', ''),
             'score': data.get('score', 0),
-            'ef_score': data.get('score', 0)/2 if isinstance(data.get('score', 0), (int, float)) else 0, # safe division
+            'ef_score': (data.get('score', 0)/2 if isinstance(data.get('score', 0), (int, float)) 
+                        else 0),  # safe division
             'body': content,
             'type': data.get('link_flair_text', ''),
             'image_link': [],

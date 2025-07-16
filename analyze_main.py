@@ -11,6 +11,7 @@ from scrape_functions import (
     fetch_json_response,
     fetch_json_response_fallback,
     test_reddit_access,
+    normalize_reddit_url,
     return_OP,
     return_comments
 )
@@ -29,6 +30,13 @@ def fetch_thread_data(url: str) -> Dict:
     print(f"LOCAL_RUN: {is_local}")
     print(f"Max retries: {max_retries}")
 
+    # Normalize the Reddit URL to proper format
+    normalized_url = normalize_reddit_url(url)
+    if normalized_url != url:
+        print(f"URL normalized from: {url}")
+        print(f"URL normalized to: {normalized_url}")
+        url = normalized_url
+
     # Test Reddit access first
     print("Testing Reddit accessibility...")
     if not test_reddit_access():
@@ -45,9 +53,11 @@ def fetch_thread_data(url: str) -> Dict:
     for attempt in range(max_retries):
         for endpoint in api_endpoints:
             try:
-                use_proxy = not is_local or (is_local and attempt == max_retries - 1)
-                if is_local and attempt == max_retries - 1:
+                # Try without proxy first, then with proxy on final attempt
+                use_proxy = False
+                if attempt == max_retries - 1:
                     print("Final attempt - trying with proxy...")
+                    use_proxy = True
                 
                 print(f"Attempt {attempt + 1}: use_proxy={use_proxy}, endpoint={endpoint}")
                 
@@ -222,7 +232,7 @@ def analyze_reddit_thread(all_data, summary_focus, summary_length, tone, include
     result_normal, result_for_5yo = asyncio.run(run_parallel_text_api_calls())
 
     result_normal = result_normal if result_normal is not None else ""  # Ensure string return
-    result_for_5yo = result_for_5yo if result_for_5yo is not None else None
+    result_for_5yo = result_for_5yo if result_for_5yo is not None else ""  # Ensure string return
 
     best_comments, important_comments = deep_analysis_of_thread(all_data, max_comments)
     return result_normal, result_for_5yo, [best_comments, important_comments]

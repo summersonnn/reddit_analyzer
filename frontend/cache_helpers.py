@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 # Add parent directory to path to allow importing analyze_main
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analyze_main import analyze_reddit_thread, fetch_thread_data
+from analyze_main_praw import analyze_reddit_thread, fetch_thread_data
 
 # Check if we're running in local mode
 is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"

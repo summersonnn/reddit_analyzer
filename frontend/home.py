@@ -6,7 +6,7 @@ import traceback
 import streamlit as st
 from analysis import analysis_page
 from cache_helpers import perform_new_analysis
-from analyze_main import fetch_thread_data
+from analyze_main_praw import fetch_thread_data
 
 
 REDDIT_URL_PATTERN = r"^https?://(www\.)?reddit\.com/r/.*/comments/.*"
