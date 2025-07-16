@@ -156,7 +156,10 @@ def home_page():
         if summary_focus_option == "Custom Summary":
             summary_focus = st.text_area(
                 "What the summary should focus on: (Max 300 characters, ~50 words. "
-                "Examples: Technical breakdown of the main arguments, community sentiment and reactions, "
+                "Examples: Technical breakdown of the main arguments, "
+                "Show 10 video topics made from the comments with two "
+                "points for each video topic. "
+                "community sentiment and reactions, "
                 "future predictions and implications, etc.):",
                 value=st.session_state.summary_focus if st.session_state.summary_focus != "General Summary" else "",
                 max_chars=300,
@@ -279,6 +282,49 @@ def home_page():
             st.session_state.cache_time = None  # No cache time for fresh analysis
             st.session_state.page = "analysis"
             st.rerun()
+    st.markdown("""
+                # Understanding Midori
+                """)
+    
+    st.image("frontend/images/businessmidori.png", width=300, use_container_width=False)
+    
+    st.markdown("""
+                In addition to a general summary, Midori can write custom reports,
+                including analyzing the comments and post to recommend
+                video topics and blog posts.
+
+                ## ef_score
+
+                The ef_score displayed on the analysis page is calculated by multiplying a
+                comment's score by its depth, where depth = 1 indicates a root comment
+                (one without a parent). This approach highlights comment quality
+                more effectively than just using raw scores, as upvoting a deeply
+                nested comment is somewhat less common.
+
+                ## Comment Ranking System
+
+                - **Best Comments Tab**: Ranks comments in **descending order** of
+                    `ef_score`.
+
+                - **Important Comments Tab**:
+                    Also uses `ef_scores`, but ranks comments based on the **increase in
+                    ef_score from parent to child**.
+                    This highlights replies that introduce **significant new information**—
+                    for example, when a reply corrects an error in the parent comment.
+
+
+                ## Limitations
+
+                - External links are searched for additional context only if the website
+                    does not require JavaScript or has no strict protections. Links to
+                    GitHub and Hugging Face work, but X links do not. PDF summaries are
+                    also unavailable.
+
+                - Images and GIFs in comments appear as links in the Best/Important
+                    comments section, allowing users to click and view them. However,
+                    they will not be displayed on the analysis page.
+
+                """)
 
 
 def main():
