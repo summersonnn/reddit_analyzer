@@ -56,7 +56,7 @@ def fetch_thread_data(url: str) -> Dict:
         "title": None,
         "original_post": None,
         "comments": None,
-        "url:": url
+        "url": url
     }
     return all_data
 

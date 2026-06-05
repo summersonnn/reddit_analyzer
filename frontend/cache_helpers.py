@@ -8,11 +8,18 @@ from datetime import datetime, timezone
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analyze_main import analyze_reddit_thread, fetch_thread_data
 
-# Check if we're running in local mode
+# LOCAL_RUN governs runtime behaviour (e.g. proxy use), not the cache backend.
 is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"
 
+# CACHE_BACKEND selects where the analysis cache lives, independently of
+# LOCAL_RUN. Accepts "local" (CSV on disk) or "s3". Defaults to follow
+# LOCAL_RUN so existing setups keep working: local run -> local cache.
+_default_cache_backend = "local" if is_local else "s3"
+CACHE_BACKEND = os.getenv("CACHE_BACKEND", _default_cache_backend).lower()
+use_local_cache = CACHE_BACKEND == "local"
+
 # Set the cache CSV path accordingly
-if is_local:
+if use_local_cache:
     CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH", "local_analyses.csv")
 else:
     CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH", "reddit-links-bucket/analyses.csv")
@@ -41,6 +48,10 @@ def pre_filter_analyses(all_analyses, all_thread_data, summary_focus, summary_le
     Returns:
     Tuple of (Filtered DataFrame of potential matches, list of indices in original DataFrame)
     """
+    # No usable cache (read failed or empty) -> treat as no matches.
+    if all_analyses is None or all_analyses.empty:
+        return pd.DataFrame(), []
+
     # Ensure correct types in the DataFrame
     for col, dtype in dtype_mapping.items():
         if col in all_analyses.columns:

@@ -9,7 +9,7 @@ import pandas as pd
 from st_files_connection import FilesConnection
 from analysis import analysis_page
 from cache_helpers import pre_filter_analyses, filter_by_params, find_best_match, update_eli5_in_cache, generate_eli5_summary, perform_new_analysis
-from cache_helpers import is_local
+from cache_helpers import use_local_cache, CACHE_CSV_PATH
 from analyze_main import fetch_thread_data
 
 
@@ -80,15 +80,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# # Check if we're running in local mode
-# is_local = os.getenv("LOCAL_RUN", "false").lower() == "true"
-
-# Set the cache CSV path accordingly
-if is_local:
-    CACHE_CSV_PATH = os.getenv("LOCAL_CACHE_CSV_PATH")
-else:
-    CACHE_CSV_PATH = os.getenv("CLOUD_CACHE_CSV_PATH")
 
 def home_page():
     # Header
@@ -226,16 +217,18 @@ def home_page():
             st.session_state.tone = tone
 
             all_thread_data = fetch_thread_data(url)
+            print("---")
+            print(all_thread_data)
 
+            conn = None
             try:
-                # Read cache depending on whether we're in local mode or not
-                if is_local:
-                    # Local mode: read from local CSV file
+                # Read cache from the configured backend (independent of LOCAL_RUN)
+                if use_local_cache:
+                    # Local cache: read from local CSV file
                     all_analyses = pd.read_csv(CACHE_CSV_PATH)
                     add_status(f"Read {len(all_analyses)} analyses from local cache", "📚")
                 else:
-                    # Cloud mode: read from S3 bucket
-                    # This also requires AWS credentials to be set up in .streamlit/secrets.toml
+                    # S3 cache: requires AWS credentials in .streamlit/secrets.toml
                     conn = st.connection('s3', type=FilesConnection)
                     all_analyses = conn.read(CACHE_CSV_PATH, input_format="csv", ttl=0)
                     add_status(f"Found {len(all_analyses)} existing analyses in cloud cache", "✅")
@@ -251,7 +244,7 @@ def home_page():
             if filtered_analyses.empty:
                 add_status("No analysis found in cache for this thread. Performing new analysis...", "🔄")
                 analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                    conn if not is_local else None,  # Pass None for local mode
+                    conn if not use_local_cache else None,  # None -> write to local CSV
                     all_thread_data, summary_focus, summary_length, tone, include_eli5,
                     analyze_image, search_external, max_comments, all_analyses
                 )
@@ -264,7 +257,7 @@ def home_page():
                     add_status("Performing a new analysis because the cached thread's settings do not match your request...", "🔄")
                     cache_index = core_indices[0]
                     analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                        conn if not is_local else None,  # Pass None for local mode
+                        conn if not use_local_cache else None,  # None -> write to local CSV
                         all_thread_data, summary_focus, summary_length, tone, include_eli5,
                         analyze_image, search_external, max_comments, all_analyses, cache_index
                     )
@@ -289,7 +282,7 @@ def home_page():
                             add_status("ELI5 was missing in the cache. Generating ELI5 summary...", "🔄")
                             sum_for_5yo = generate_eli5_summary(all_thread_data, summary_focus, summary_length, tone, analyze_image, search_external, max_comments)
                             update_eli5_in_cache(
-                                conn if not is_local else None,  # Pass None for local mode
+                                conn if not use_local_cache else None,  # None -> write to local CSV
                                 all_analyses, sum_for_5yo, cache_index
                             )
                             st.success("Retrieved existing analysis and generated ELI5 summary!")
@@ -299,7 +292,7 @@ def home_page():
                         add_status("Cached thread was not recent enough. Performing new analysis...", "🔄")
                         cache_index = param_indices[0]
                         analysis_result, sum_for_5yo, notable_comments = perform_new_analysis(
-                            conn if not is_local else None,  # Pass None for local mode
+                            conn if not use_local_cache else None,  # None -> write to local CSV
                             all_thread_data, summary_focus, summary_length, tone, include_eli5,
                             analyze_image, search_external, max_comments, all_analyses, cache_index
                         )

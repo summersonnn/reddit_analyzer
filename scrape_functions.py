@@ -1,54 +1,170 @@
+"""
+Reddit scraping helpers.
+
+Reddit gates anonymous `.json` access behind a JavaScript (reCAPTCHA)
+challenge that header/TLS spoofing cannot pass. `RedditSession` clears the
+challenge once with a headless browser, then replays the resulting clearance
+cookies on a fast `requests.Session`, re-minting them on demand when blocked.
+"""
+
 import requests
 import re
 import os
 import html
+import logging
+import threading
 from urllib.parse import urlparse
 
-def fetch_json_response(url: str, use_proxy: bool = False) -> dict or str:
-    """
-    Fetches the JSON response from the given URL using the requests package.
-    Uses proxy if specified. Uses a custom User-Agent if provided via
-    the CUSTOM_USER_AGENT environment variable; otherwise, uses a default.
-    
-    Query parameters (including the '?' character) are removed from the URL before processing.
-    """
-    # Remove query parameters from the URL
-    parsed_url = urlparse(url)
-    url = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+from playwright.sync_api import sync_playwright
 
-    # Ensure the URL ends with '.json'
-    if not url.endswith('.json'):
-        url += '.json'
+logger = logging.getLogger(__name__)
 
-    # Get the custom user agent from the environment, or use a default.
-    custom_user_agent = os.getenv("CUSTOM_USER_AGENT")
-    headers = {
-        'User-Agent': custom_user_agent if custom_user_agent else (
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+# Chrome UA used for both cookie minting and replay; the two must match or
+# Reddit invalidates the clearance cookies.
+_BROWSER_UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
+_NAV_TIMEOUT_MS = 45000
+_CHALLENGE_WAIT_MS = 6000
+_REQUEST_TIMEOUT_S = 30
+
+# Sentinel signalling that Reddit served its bot wall instead of JSON.
+_BLOCKED = object()
+
+
+def _normalize_json_url(url: str) -> str:
+    """Strips query params and ensures the URL targets the `.json` endpoint."""
+    parsed = urlparse(url)
+    clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    if not clean.endswith(".json"):
+        clean += ".json"
+    return clean
+
+
+def _proxies_from_env() -> dict[str, str] | None:
+    """Builds a requests proxies dict from the environment, or None if unset."""
+    http_proxy = os.getenv("PROXY_HTTP")
+    https_proxy = os.getenv("PROXY_HTTPS")
+    if not (http_proxy or https_proxy):
+        return None
+    return {"http": http_proxy, "https": https_proxy}
+
+
+def _playwright_proxy(proxies: dict[str, str] | None) -> dict[str, str] | None:
+    """Converts a requests proxies dict to Playwright's proxy config shape."""
+    if not proxies:
+        return None
+    parsed = urlparse(proxies.get("https") or proxies["http"])
+    proxy = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+    if parsed.username:
+        proxy["username"] = parsed.username
+        proxy["password"] = parsed.password or ""
+    return proxy
+
+
+def _mint_clearance_cookies(
+    landing_url: str, proxies: dict[str, str] | None
+) -> list[dict]:
+    """Clears Reddit's JS challenge in a headless browser, returns its cookies."""
+    pw_proxy = _playwright_proxy(proxies)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True, proxy=pw_proxy)
+        try:
+            context = browser.new_context(
+                user_agent=_BROWSER_UA,
+                locale="en-US",
+                viewport={"width": 1280, "height": 800},
+            )
+            page = context.new_page()
+            page.goto(
+                landing_url, wait_until="domcontentloaded", timeout=_NAV_TIMEOUT_MS
+            )
+            page.wait_for_timeout(_CHALLENGE_WAIT_MS)
+            return context.cookies()
+        finally:
+            browser.close()
+
+
+class RedditSession:
+    """Replays browser-minted clearance cookies on a reusable requests session."""
+
+    def __init__(self) -> None:
+        self._session = requests.Session()
+        self._session.headers.update(
+            {"User-Agent": _BROWSER_UA, "Accept": "application/json"}
         )
-    }
+        self._lock = threading.Lock()
+        self._primed = False
 
-    proxies = None
-    if use_proxy:
-        http_proxy = os.getenv("PROXY_HTTP")
-        https_proxy = os.getenv("PROXY_HTTPS")
-        if http_proxy or https_proxy:  # Only set proxies if they are actually defined
-            proxies = {
-                'http': http_proxy,
-                'https': https_proxy
-            }
+    def fetch_json(self, url: str, use_proxy: bool = False) -> dict | str:
+        """Fetches Reddit JSON, clearing/refreshing the challenge as needed."""
+        json_url = _normalize_json_url(url)
+        proxies = _proxies_from_env() if use_proxy else None
 
-    try:
-        response = requests.get(url, headers=headers, proxies=proxies)
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return f"Error: Request failed with exception: {e}"
-    except ValueError as e:  # json.decoder.JSONDecodeError in Python 3.6+ is ValueError
-        return f"Error: Invalid JSON response: {e}"  # Handle cases where the response isn't valid JSON
-    except Exception as e:
-        return f"Error fetching JSON response: {e}"
+        result = self._attempt(json_url, proxies)
+        if result is _BLOCKED:
+            logger.warning("Reddit clearance stale or missing; re-minting cookies.")
+            self._prime(json_url, proxies, force=True)
+            result = self._attempt(json_url, proxies)
+
+        if result is _BLOCKED:
+            return "Error: Request blocked by Reddit bot protection."
+        return result
+
+    def _attempt(self, json_url: str, proxies: dict[str, str] | None) -> dict | str:
+        """Primes cookies if needed, then performs one guarded JSON request."""
+        self._prime(json_url, proxies, force=False)
+        try:
+            response = self._session.get(
+                json_url, proxies=proxies, timeout=_REQUEST_TIMEOUT_S
+            )
+        except requests.exceptions.RequestException as e:
+            return f"Error: Request failed with exception: {e}"
+
+        content_type = response.headers.get("content-type", "")
+        if response.status_code == 403 or "application/json" not in content_type:
+            return _BLOCKED
+
+        try:
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return f"Error: Request failed with exception: {e}"
+        except ValueError as e:
+            return f"Error: Invalid JSON response: {e}"
+
+    def _prime(
+        self, json_url: str, proxies: dict[str, str] | None, force: bool
+    ) -> None:
+        """Mints and applies clearance cookies under a lock (once unless forced)."""
+        with self._lock:
+            if self._primed and not force:
+                return
+            landing_url = json_url[: -len(".json")]
+            cookies = _mint_clearance_cookies(landing_url, proxies)
+            for cookie in cookies:
+                self._session.cookies.set(
+                    cookie["name"],
+                    cookie["value"],
+                    domain=cookie.get("domain"),
+                    path=cookie.get("path", "/"),
+                )
+            self._primed = True
+
+
+_reddit_session = RedditSession()
+
+
+def fetch_json_response(url: str, use_proxy: bool = False) -> dict | str:
+    """
+    Fetches the JSON response for a Reddit URL.
+
+    Delegates to a shared RedditSession that clears Reddit's JS bot challenge
+    via a headless browser and replays the clearance cookies. Returns the
+    parsed JSON on success, or an error string the caller can detect.
+    """
+    return _reddit_session.fetch_json(url, use_proxy=use_proxy)
 
 
 def return_OP(json_data):
